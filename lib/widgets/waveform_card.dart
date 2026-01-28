@@ -53,20 +53,33 @@ class _WaveformCardState extends State<WaveformCard>
     super.dispose();
   }
 
+  bool _wasSpeaking = false;
+
+  void _handleSpeakingStateChange(bool isSpeaking) {
+    if (isSpeaking && !_animationController.isAnimating) {
+      _animationController.repeat();
+    } else if (!isSpeaking && _animationController.isAnimating) {
+      _animationController.stop();
+      // Reset to idle state
+      setState(() {
+        _barHeights = List.generate(barCount, (_) => 0.1);
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer<AppProvider>(
       builder: (context, provider, child) {
         final isSpeaking = provider.isSpeaking;
 
-        // Start/stop animation based on TTS state
-        if (isSpeaking && !_animationController.isAnimating) {
-          _animationController.repeat();
-        } else if (!isSpeaking && _animationController.isAnimating) {
-          _animationController.stop();
-          // Reset to idle state
-          setState(() {
-            _barHeights = List.generate(barCount, (_) => 0.1);
+        // Defer animation state changes to after build completes
+        if (isSpeaking != _wasSpeaking) {
+          _wasSpeaking = isSpeaking;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              _handleSpeakingStateChange(isSpeaking);
+            }
           });
         }
 
