@@ -6,11 +6,7 @@ import '../models/traffic_update.dart';
 import '../providers/app_provider.dart';
 import '../theme/app_theme.dart';
 
-/// Map card widget showing user location and traffic markers.
-///
-/// Uses OpenStreetMap via flutter_map for easy setup without API keys.
-/// Shows user's current position and traffic camera locations with
-/// color-coded severity indicators.
+/// Map card showing user location and traffic markers.
 class MapCard extends StatelessWidget {
   const MapCard({super.key});
 
@@ -25,125 +21,65 @@ class MapCard extends StatelessWidget {
             ? LatLng(userLocation.latitude, userLocation.longitude)
             : defaultLocation;
 
-        return Container(
-          margin: const EdgeInsets.symmetric(horizontal: 20),
-          height: 220,
-          decoration: BoxDecoration(
-            color: AppTheme.cardDark,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(
-              color: AppTheme.accentPurple.withAlpha(30),
-              width: 1,
-            ),
-          ),
+        return GradientBorderCard(
+          margin: const EdgeInsets.symmetric(horizontal: 16),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(24),
-            child: Stack(
-              children: [
-                // Map
-                FlutterMap(
-                  options: MapOptions(
-                    initialCenter: center,
-                    initialZoom: 13.0,
-                    interactionOptions: const InteractionOptions(
-                      flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
-                    ),
-                  ),
-                  children: [
-                    // Light mode map tiles (CartoDB Positron)
-                    TileLayer(
-                      urlTemplate:
-                          'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-                      subdomains: const ['a', 'b', 'c', 'd'],
-                      userAgentPackageName: 'com.example.cycleeffect',
-                      retinaMode: true,
-                    ),
-                    // Traffic area circles
-                    CircleLayer(
-                      circles: _buildTrafficCircles(provider.trafficUpdates),
-                    ),
-                    // Markers layer
-                    MarkerLayer(
-                      markers: [
-                        // User location marker
-                        if (userLocation != null)
-                          Marker(
-                            point: LatLng(
-                              userLocation.latitude,
-                              userLocation.longitude,
-                            ),
-                            width: 40,
-                            height: 40,
-                            child: _buildUserMarker(userLocation.heading),
-                          ),
-                        // Traffic camera markers
-                        ...provider.trafficUpdates.map(
-                          (update) => Marker(
-                            point: LatLng(update.latitude, update.longitude),
-                            width: 30,
-                            height: 30,
-                            child: _buildTrafficMarker(update),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                // Location info overlay
-                if (userLocation != null)
-                  Positioned(
-                    bottom: 12,
-                    left: 12,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
+            borderRadius: BorderRadius.circular(15),
+            child: SizedBox(
+              height: MediaQuery.of(context).size.height * 0.22,
+              child: Stack(
+                children: [
+                  // Map
+                  FlutterMap(
+                    options: MapOptions(
+                      initialCenter: center,
+                      initialZoom: 14.0,
+                      interactionOptions: const InteractionOptions(
+                        flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
                       ),
-                      decoration: BoxDecoration(
-                        color: AppTheme.backgroundDark.withAlpha(230),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: AppTheme.accentPurple.withAlpha(50),
-                        ),
+                    ),
+                    children: [
+                      // Light mode map tiles
+                      TileLayer(
+                        urlTemplate:
+                            'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+                        subdomains: const ['a', 'b', 'c', 'd'],
+                        userAgentPackageName: 'com.example.cycleeffect',
+                        retinaMode: true,
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.navigation_rounded,
-                            size: 16,
-                            color: AppTheme.accentPurple,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            userLocation.cardinalDirection ?? 'Locating...',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: AppTheme.textBright,
-                            ),
-                          ),
-                          if (userLocation.formattedSpeed != null) ...[
-                            const SizedBox(width: 8),
-                            Text(
-                              userLocation.formattedSpeed!,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: AppTheme.textSecondary,
+                      // Traffic area circles
+                      CircleLayer(
+                        circles: _buildTrafficCircles(provider.trafficUpdates),
+                      ),
+                      // Markers layer
+                      MarkerLayer(
+                        markers: [
+                          // User location marker
+                          if (userLocation != null)
+                            Marker(
+                              point: LatLng(
+                                userLocation.latitude,
+                                userLocation.longitude,
                               ),
+                              width: 24,
+                              height: 24,
+                              child: _buildUserMarker(),
                             ),
-                          ],
+                          // Traffic camera markers
+                          ...provider.trafficUpdates.map(
+                            (update) => Marker(
+                              point: LatLng(update.latitude, update.longitude),
+                              width: 28,
+                              height: 28,
+                              child: _buildTrafficMarker(update),
+                            ),
+                          ),
                         ],
                       ),
-                    ),
+                    ],
                   ),
-                // Connection status indicator
-                Positioned(
-                  top: 12,
-                  right: 12,
-                  child: _buildConnectionIndicator(provider.connectionState),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         );
@@ -151,68 +87,44 @@ class MapCard extends StatelessWidget {
     );
   }
 
-  /// Builds the user's location marker with heading indicator.
-  Widget _buildUserMarker(double? heading) {
+  Widget _buildUserMarker() {
     return Container(
       decoration: BoxDecoration(
-        color: AppTheme.accentPurple,
+        color: Colors.blue.withOpacity(0.2),
         shape: BoxShape.circle,
-        border: Border.all(color: AppTheme.textBright, width: 3),
-        boxShadow: [
-          BoxShadow(
-            color: AppTheme.accentPurple.withAlpha(80),
-            blurRadius: 10,
-            spreadRadius: 3,
-          ),
-        ],
+        border: Border.all(color: Colors.blue.withOpacity(0.6), width: 2),
       ),
-      child: heading != null
-          ? Transform.rotate(
-              angle: heading * (3.14159 / 180),
-              child: const Icon(
-                Icons.navigation,
-                color: AppTheme.textBright,
-                size: 20,
-              ),
-            )
-          : const Icon(
-              Icons.my_location,
-              color: AppTheme.textBright,
-              size: 20,
-            ),
+      child: Center(
+        child: Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(
+            color: Colors.blue,
+            shape: BoxShape.circle,
+          ),
+        ),
+      ),
     );
   }
 
-  /// Builds a traffic camera marker with severity coloring.
   Widget _buildTrafficMarker(TrafficUpdate update) {
     final color = _colorForSeverity(update.severity);
     final hasIncident = update.incident != null;
 
     return Container(
       decoration: BoxDecoration(
-        color: color,
+        color: color.withOpacity(0.15),
         shape: BoxShape.circle,
-        border: Border.all(
-          color: AppTheme.textBright,
-          width: 2,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: color.withAlpha(100),
-            blurRadius: 6,
-            spreadRadius: 1,
-          ),
-        ],
+        border: Border.all(color: color.withOpacity(0.5), width: 1.5),
       ),
       child: Icon(
-        hasIncident ? Icons.warning_rounded : Icons.videocam_rounded,
-        color: AppTheme.textBright,
-        size: 14,
+        hasIncident ? Icons.priority_high_rounded : Icons.speed_rounded,
+        color: color.withOpacity(0.8),
+        size: 16,
       ),
     );
   }
 
-  /// Builds traffic area circles for the map.
   List<CircleMarker> _buildTrafficCircles(List<TrafficUpdate> updates) {
     return updates.map((update) {
       final color = _colorForSeverity(update.severity);
@@ -220,55 +132,15 @@ class MapCard extends StatelessWidget {
 
       return CircleMarker(
         point: LatLng(update.latitude, update.longitude),
-        radius: hasIncident ? 150 : 100,
-        color: color.withAlpha(40),
-        borderColor: color.withAlpha(80),
-        borderStrokeWidth: 2,
+        radius: hasIncident ? 120 : 80,
+        color: color.withOpacity(0.1),
+        borderColor: color.withOpacity(0.3),
+        borderStrokeWidth: 1,
         useRadiusInMeter: true,
       );
     }).toList();
   }
 
-  /// Builds the connection status indicator.
-  Widget _buildConnectionIndicator(connectionState) {
-    Color color;
-    IconData icon;
-    String tooltip;
-
-    switch (connectionState.toString()) {
-      case 'ConnectionState.connected':
-        color = AppTheme.trafficLow;
-        icon = Icons.wifi;
-        tooltip = 'Connected';
-        break;
-      case 'ConnectionState.connecting':
-        color = AppTheme.trafficMedium;
-        icon = Icons.wifi_find;
-        tooltip = 'Connecting...';
-        break;
-      default:
-        color = AppTheme.trafficHigh;
-        icon = Icons.wifi_off;
-        tooltip = 'Offline';
-    }
-
-    return Tooltip(
-      message: tooltip,
-      child: Container(
-        padding: const EdgeInsets.all(6),
-        decoration: BoxDecoration(
-          color: AppTheme.backgroundDark.withAlpha(230),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: AppTheme.accentPurple.withAlpha(50),
-          ),
-        ),
-        child: Icon(icon, size: 18, color: color),
-      ),
-    );
-  }
-
-  /// Returns the color for a traffic severity level.
   Color _colorForSeverity(TrafficSeverity severity) {
     switch (severity) {
       case TrafficSeverity.low:
