@@ -87,15 +87,12 @@ class _WaveformCardState extends State<WaveformCard>
           margin: const EdgeInsets.symmetric(horizontal: 20),
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: AppTheme.waveformCardBackground,
+            color: AppTheme.cardBackgroundAlt,
             borderRadius: BorderRadius.circular(24),
-            boxShadow: [
-              BoxShadow(
-                color: AppTheme.primaryGreen.withOpacity(0.08),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
+            border: Border.all(
+              color: AppTheme.accentPurple.withAlpha(30),
+              width: 1,
+            ),
           ),
           child: Column(
             children: [
@@ -106,18 +103,18 @@ class _WaveformCardState extends State<WaveformCard>
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
                       color: isSpeaking
-                          ? AppTheme.primaryGreen.withOpacity(0.2)
-                          : AppTheme.lightGreen.withOpacity(0.3),
+                          ? AppTheme.accentPurple.withAlpha(60)
+                          : AppTheme.accentPurple.withAlpha(30),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Icon(
                       isSpeaking
                           ? Icons.record_voice_over_rounded
-                          : Icons.voice_over_off_rounded,
+                          : Icons.assistant_rounded,
                       size: 24,
                       color: isSpeaking
-                          ? AppTheme.primaryGreen
-                          : AppTheme.textMuted,
+                          ? AppTheme.textBright
+                          : AppTheme.accentPurple,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -130,7 +127,7 @@ class _WaveformCardState extends State<WaveformCard>
                           style:
                               Theme.of(context).textTheme.titleMedium?.copyWith(
                                     fontWeight: FontWeight.w600,
-                                    color: AppTheme.textPrimary,
+                                    color: AppTheme.textBright,
                                   ),
                         ),
                         Text(
@@ -165,6 +162,7 @@ class _WaveformCardState extends State<WaveformCard>
                       height: _barHeights[index],
                       isActive: isSpeaking,
                       index: index,
+                      totalBars: barCount,
                     );
                   }),
                 ),
@@ -182,37 +180,38 @@ class _WaveformBar extends StatelessWidget {
   final double height;
   final bool isActive;
   final int index;
+  final int totalBars;
 
   const _WaveformBar({
     required this.height,
     required this.isActive,
     required this.index,
+    required this.totalBars,
   });
 
   @override
   Widget build(BuildContext context) {
-    // Calculate color based on position for gradient effect
-    final hue = 120.0 + (index / 32) * 40; // Green to light green
+    // Calculate taper multiplier - bars at edges are shorter than middle
+    // Using a sine curve for smooth tapering
+    final normalizedPosition = index / (totalBars - 1); // 0 to 1
+    final taperMultiplier = sin(normalizedPosition * 3.14159); // 0 at edges, 1 at middle
+    final adjustedTaper = 0.3 + (taperMultiplier * 0.7); // Range from 0.3 to 1.0
+
+    // Calculate color based on position for gradient effect (purple spectrum)
+    final hue = 250.0 + (index / totalBars) * 30; // Purple spectrum
     final color = isActive
-        ? HSLColor.fromAHSL(1.0, hue, 0.6, 0.45).toColor()
-        : AppTheme.lightGreen.withOpacity(0.4);
+        ? HSLColor.fromAHSL(1.0, hue, 0.5, 0.6).toColor()
+        : AppTheme.accentPurple.withAlpha(60);
+
+    final double barHeight = isActive ? 80 * height * adjustedTaper : 6.0;
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 80),
-      width: 6,
-      height: isActive ? 80 * height : 8,
+      width: 5,
+      height: barHeight,
       decoration: BoxDecoration(
         color: color,
-        borderRadius: BorderRadius.circular(3),
-        boxShadow: isActive
-            ? [
-                BoxShadow(
-                  color: color.withOpacity(0.3),
-                  blurRadius: 4,
-                  spreadRadius: 1,
-                ),
-              ]
-            : null,
+        borderRadius: BorderRadius.circular(2.5),
       ),
     );
   }

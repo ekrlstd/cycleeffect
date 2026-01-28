@@ -1,23 +1,23 @@
 import 'package:flutter/material.dart';
 
-/// App theme configuration using Material 3 with green color scheme.
+/// App theme configuration using Material 3 with dark purple color scheme.
 ///
-/// Implements a modern, expressive design with various shades of green
-/// for cards and UI elements.
+/// Implements a modern, sleek dark mode design with purple accents.
 class AppTheme {
   AppTheme._();
 
-  // Primary green color palette
-  static const Color primaryGreen = Color(0xFF2E7D32);
-  static const Color lightGreen = Color(0xFF81C784);
-  static const Color paleGreen = Color(0xFFE8F5E9);
-  static const Color darkGreen = Color(0xFF1B5E20);
+  // Dark purple color palette
+  static const Color backgroundDark = Color(0xFF1a1a40);
+  static const Color cardDark = Color(0xFF3f3f70);
+  static const Color accentPurple = Color(0xFF7070a3);
+  static const Color textLight = Color(0xFFd3d3e6);
+  static const Color textBright = Color(0xFFf5f5ff);
 
-  // Card colors with various green shades
-  static const Color cardBackground = Color(0xFFF1F8E9);
-  static const Color cardBackgroundAlt = Color(0xFFE8F5E9);
-  static const Color mapCardBackground = Color(0xFFDCEDC8);
-  static const Color waveformCardBackground = Color(0xFFC8E6C9);
+  // Card colors
+  static const Color cardBackground = Color(0xFF3f3f70);
+  static const Color cardBackgroundAlt = Color(0xFF2a2a50);
+  static const Color mapCardBackground = Color(0xFF3f3f70);
+  static const Color waveformCardBackground = Color(0xFF2a2a50);
 
   // Traffic severity colors
   static const Color trafficLow = Color(0xFF4CAF50);
@@ -25,27 +25,33 @@ class AppTheme {
   static const Color trafficHigh = Color(0xFFEF5350);
 
   // Text colors
-  static const Color textPrimary = Color(0xFF1B5E20);
-  static const Color textSecondary = Color(0xFF558B2F);
-  static const Color textMuted = Color(0xFF7CB342);
+  static const Color textPrimary = Color(0xFFf5f5ff);
+  static const Color textSecondary = Color(0xFFd3d3e6);
+  static const Color textMuted = Color(0xFF7070a3);
 
-  /// Creates the light theme for the app.
-  static ThemeData get lightTheme {
+  // Legacy aliases for compatibility
+  static const Color primaryGreen = accentPurple;
+  static const Color lightGreen = textLight;
+  static const Color paleGreen = backgroundDark;
+  static const Color darkGreen = backgroundDark;
+
+  /// Creates the dark theme for the app.
+  static ThemeData get darkTheme {
     final colorScheme = ColorScheme.fromSeed(
-      seedColor: primaryGreen,
-      brightness: Brightness.light,
-      primary: primaryGreen,
-      secondary: lightGreen,
-      surface: Colors.white,
-      onPrimary: Colors.white,
-      onSecondary: darkGreen,
+      seedColor: accentPurple,
+      brightness: Brightness.dark,
+      primary: accentPurple,
+      secondary: textLight,
+      surface: cardDark,
+      onPrimary: textBright,
+      onSecondary: backgroundDark,
       onSurface: textPrimary,
     );
 
     return ThemeData(
       useMaterial3: true,
       colorScheme: colorScheme,
-      scaffoldBackgroundColor: paleGreen,
+      scaffoldBackgroundColor: backgroundDark,
 
       // AppBar theme
       appBarTheme: AppBarTheme(
@@ -57,7 +63,7 @@ class AppTheme {
           fontSize: 24,
           fontWeight: FontWeight.bold,
         ),
-        iconTheme: IconThemeData(color: primaryGreen),
+        iconTheme: IconThemeData(color: accentPurple),
       ),
 
       // Card theme
@@ -103,11 +109,35 @@ class AppTheme {
 
       // Icon theme
       iconTheme: IconThemeData(
-        color: primaryGreen,
+        color: accentPurple,
         size: 24,
+      ),
+
+      // Floating action button
+      floatingActionButtonTheme: FloatingActionButtonThemeData(
+        backgroundColor: accentPurple,
+        foregroundColor: textBright,
+      ),
+
+      // Snackbar theme
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: cardDark,
+        contentTextStyle: TextStyle(color: textPrimary),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+      ),
+
+      // Divider theme
+      dividerTheme: DividerThemeData(
+        color: accentPurple.withAlpha(50),
+        thickness: 1,
       ),
     );
   }
+
+  // Alias for backward compatibility
+  static ThemeData get lightTheme => darkTheme;
 
   /// Returns the appropriate color for a traffic severity level.
   static Color colorForSeverity(String severity) {

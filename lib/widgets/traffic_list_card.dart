@@ -21,15 +21,12 @@ class TrafficListCard extends StatelessWidget {
         return Container(
           margin: const EdgeInsets.symmetric(horizontal: 20),
           decoration: BoxDecoration(
-            color: AppTheme.cardBackground,
+            color: AppTheme.cardDark,
             borderRadius: BorderRadius.circular(24),
-            boxShadow: [
-              BoxShadow(
-                color: AppTheme.primaryGreen.withOpacity(0.08),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
+            border: Border.all(
+              color: AppTheme.accentPurple.withAlpha(30),
+              width: 1,
+            ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -42,13 +39,13 @@ class TrafficListCard extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: AppTheme.lightGreen.withOpacity(0.3),
+                        color: AppTheme.accentPurple.withAlpha(40),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: const Icon(
-                        Icons.traffic_rounded,
+                        Icons.notifications_active_rounded,
                         size: 20,
-                        color: AppTheme.primaryGreen,
+                        color: AppTheme.accentPurple,
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -56,7 +53,7 @@ class TrafficListCard extends StatelessWidget {
                       'Recent Traffic Updates',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w600,
-                            color: AppTheme.textPrimary,
+                            color: AppTheme.textBright,
                           ),
                     ),
                     const Spacer(),
@@ -71,7 +68,7 @@ class TrafficListCard extends StatelessWidget {
               ),
               // Divider
               Divider(
-                color: AppTheme.lightGreen.withOpacity(0.3),
+                color: AppTheme.accentPurple.withAlpha(30),
                 height: 1,
               ),
               // List
@@ -84,7 +81,7 @@ class TrafficListCard extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   itemCount: updates.length,
                   separatorBuilder: (context, index) => Divider(
-                    color: AppTheme.lightGreen.withOpacity(0.2),
+                    color: AppTheme.accentPurple.withAlpha(20),
                     height: 1,
                     indent: 68,
                   ),
@@ -111,20 +108,20 @@ class TrafficListCard extends StatelessWidget {
             Icon(
               Icons.search_off_rounded,
               size: 48,
-              color: AppTheme.textMuted.withOpacity(0.5),
+              color: AppTheme.textMuted.withAlpha(128),
             ),
             const SizedBox(height: 12),
             Text(
               'No traffic updates yet',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppTheme.textMuted,
+                    color: AppTheme.textSecondary,
                   ),
             ),
             const SizedBox(height: 4),
             Text(
               'Updates will appear as you drive',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppTheme.textMuted.withOpacity(0.7),
+                    color: AppTheme.textMuted,
                   ),
             ),
           ],
@@ -188,7 +185,7 @@ class _TrafficUpdateTile extends StatelessWidget {
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: severityColor.withOpacity(0.15),
+                color: severityColor.withAlpha(40),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Stack(
@@ -217,7 +214,7 @@ class _TrafficUpdateTile extends StatelessWidget {
                       child: Text(
                         '${update.vehicleCount}',
                         style: const TextStyle(
-                          color: Colors.white,
+                          color: AppTheme.textBright,
                           fontSize: 10,
                           fontWeight: FontWeight.bold,
                         ),
@@ -237,7 +234,7 @@ class _TrafficUpdateTile extends StatelessWidget {
                     update.location,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           fontWeight: FontWeight.w600,
-                          color: AppTheme.textPrimary,
+                          color: AppTheme.textBright,
                         ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -275,7 +272,7 @@ class _TrafficUpdateTile extends StatelessWidget {
                 Icon(
                   Icons.volume_up_rounded,
                   size: 20,
-                  color: AppTheme.lightGreen,
+                  color: AppTheme.accentPurple,
                 ),
               ],
             ),
@@ -289,7 +286,7 @@ class _TrafficUpdateTile extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.15),
+        color: color.withAlpha(40),
         borderRadius: BorderRadius.circular(6),
       ),
       child: Text(

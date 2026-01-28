@@ -19,13 +19,13 @@ void main() {
     DeviceOrientation.portraitDown,
   ]);
 
-  // Set system UI overlay style for light theme
+  // Set system UI overlay style for dark theme
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.dark,
-      systemNavigationBarColor: AppTheme.paleGreen,
-      systemNavigationBarIconBrightness: Brightness.dark,
+      statusBarIconBrightness: Brightness.light,
+      systemNavigationBarColor: AppTheme.backgroundDark,
+      systemNavigationBarIconBrightness: Brightness.light,
     ),
   );
 
@@ -85,7 +85,7 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.paleGreen,
+      backgroundColor: AppTheme.backgroundDark,
       body: SafeArea(
         child: Consumer<AppProvider>(
           builder: (context, provider, child) {
@@ -93,8 +93,8 @@ class _HomePageState extends State<HomePage> {
               onRefresh: () async {
                 await provider.reconnect();
               },
-              color: AppTheme.primaryGreen,
-              backgroundColor: Colors.white,
+              color: AppTheme.accentPurple,
+              backgroundColor: AppTheme.cardDark,
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 child: Column(
@@ -107,11 +107,11 @@ class _HomePageState extends State<HomePage> {
                     // Map card with location marker
                     const MapCard(),
                     const SizedBox(height: 20),
-                    // Traffic updates list
-                    const TrafficListCard(),
-                    const SizedBox(height: 20),
                     // Audio waveform visualizer
                     const WaveformCard(),
+                    const SizedBox(height: 20),
+                    // Traffic updates list
+                    const TrafficListCard(),
                     const SizedBox(height: 24),
                     // Debug section (can be removed in production)
                     if (provider.error != null)
@@ -134,7 +134,7 @@ class _HomePageState extends State<HomePage> {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: const Text('Loaded demo traffic data'),
-                    backgroundColor: AppTheme.primaryGreen,
+                    backgroundColor: AppTheme.cardBackgroundAlt,
                     behavior: SnackBarBehavior.floating,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
@@ -149,8 +149,8 @@ class _HomePageState extends State<HomePage> {
                 provider.speakAlert(message);
               }
             },
-            backgroundColor: AppTheme.primaryGreen,
-            foregroundColor: Colors.white,
+            backgroundColor: AppTheme.cardBackgroundAlt,
+            foregroundColor: AppTheme.textBright,
             icon: Icon(
               provider.trafficUpdates.isEmpty
                   ? Icons.download_rounded

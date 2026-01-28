@@ -29,15 +29,12 @@ class MapCard extends StatelessWidget {
           margin: const EdgeInsets.symmetric(horizontal: 20),
           height: 220,
           decoration: BoxDecoration(
-            color: AppTheme.mapCardBackground,
+            color: AppTheme.cardDark,
             borderRadius: BorderRadius.circular(24),
-            boxShadow: [
-              BoxShadow(
-                color: AppTheme.primaryGreen.withOpacity(0.1),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
+            border: Border.all(
+              color: AppTheme.accentPurple.withAlpha(30),
+              width: 1,
+            ),
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(24),
@@ -53,7 +50,7 @@ class MapCard extends StatelessWidget {
                     ),
                   ),
                   children: [
-                    // Clean, minimal map tiles (CartoDB Positron - similar to Google Maps)
+                    // Light mode map tiles (CartoDB Positron)
                     TileLayer(
                       urlTemplate:
                           'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
@@ -103,8 +100,11 @@ class MapCard extends StatelessWidget {
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.9),
+                        color: AppTheme.backgroundDark.withAlpha(230),
                         borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: AppTheme.accentPurple.withAlpha(50),
+                        ),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -112,7 +112,7 @@ class MapCard extends StatelessWidget {
                           const Icon(
                             Icons.navigation_rounded,
                             size: 16,
-                            color: AppTheme.primaryGreen,
+                            color: AppTheme.accentPurple,
                           ),
                           const SizedBox(width: 6),
                           Text(
@@ -120,7 +120,7 @@ class MapCard extends StatelessWidget {
                             style: const TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
-                              color: AppTheme.textPrimary,
+                              color: AppTheme.textBright,
                             ),
                           ),
                           if (userLocation.formattedSpeed != null) ...[
@@ -155,12 +155,12 @@ class MapCard extends StatelessWidget {
   Widget _buildUserMarker(double? heading) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.blue,
+        color: AppTheme.accentPurple,
         shape: BoxShape.circle,
-        border: Border.all(color: Colors.white, width: 3),
+        border: Border.all(color: AppTheme.textBright, width: 3),
         boxShadow: [
           BoxShadow(
-            color: Colors.blue.withOpacity(0.3),
+            color: AppTheme.accentPurple.withAlpha(80),
             blurRadius: 10,
             spreadRadius: 3,
           ),
@@ -171,13 +171,13 @@ class MapCard extends StatelessWidget {
               angle: heading * (3.14159 / 180),
               child: const Icon(
                 Icons.navigation,
-                color: Colors.white,
+                color: AppTheme.textBright,
                 size: 20,
               ),
             )
           : const Icon(
               Icons.my_location,
-              color: Colors.white,
+              color: AppTheme.textBright,
               size: 20,
             ),
     );
@@ -193,12 +193,12 @@ class MapCard extends StatelessWidget {
         color: color,
         shape: BoxShape.circle,
         border: Border.all(
-          color: Colors.white,
+          color: AppTheme.textBright,
           width: 2,
         ),
         boxShadow: [
           BoxShadow(
-            color: color.withOpacity(0.4),
+            color: color.withAlpha(100),
             blurRadius: 6,
             spreadRadius: 1,
           ),
@@ -206,7 +206,7 @@ class MapCard extends StatelessWidget {
       ),
       child: Icon(
         hasIncident ? Icons.warning_rounded : Icons.videocam_rounded,
-        color: Colors.white,
+        color: AppTheme.textBright,
         size: 14,
       ),
     );
@@ -221,8 +221,8 @@ class MapCard extends StatelessWidget {
       return CircleMarker(
         point: LatLng(update.latitude, update.longitude),
         radius: hasIncident ? 150 : 100,
-        color: color.withOpacity(0.15),
-        borderColor: color.withOpacity(0.3),
+        color: color.withAlpha(40),
+        borderColor: color.withAlpha(80),
         borderStrokeWidth: 2,
         useRadiusInMeter: true,
       );
@@ -257,8 +257,11 @@ class MapCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(6),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.9),
+          color: AppTheme.backgroundDark.withAlpha(230),
           borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: AppTheme.accentPurple.withAlpha(50),
+          ),
         ),
         child: Icon(icon, size: 18, color: color),
       ),
