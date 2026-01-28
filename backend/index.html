@@ -1,112 +1,185 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Traffic Feed Viewer</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: #e2e8f0; }
-        .json-key { color: #93c5fd; }
-        .json-string { color: #86efac; }
-        .json-number { color: #fca5a5; }
-        .json-boolean { color: #f9a8d4; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Traffic Feed Viewer</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #0f172a;
+      color: #e2e8f0;
+    }
+
+    .json-key {
+      color: #93c5fd;
+    }
+
+    .json-string {
+      color: #86efac;
+    }
+
+    .json-number {
+      color: #fca5a5;
+    }
+
+    .json-boolean {
+      color: #f9a8d4;
+    }
+  </style>
 </head>
+
 <body class="p-8">
-    <div class="max-w-4xl mx-auto">
-        <header class="mb-8 border-b border-gray-700 pb-4">
-            <h1 class="text-3xl font-bold bg-gradient-to-r from-blue-400 to-teal-400 bg-clip-text text-transparent">
-                🚦 Traffic Feed Stream
-            </h1>
-            <p class="text-gray-400 mt-2">Connected to <code class="text-sm bg-gray-800 px-2 py-1 rounded">ws://localhost:8000/ws/traffic</code></p>
-        </header>
+  <div class="max-w-4xl mx-auto">
+    <header class="mb-8 border-b border-gray-700 pb-4 flex justify-between items-center">
+      <div>
+        <h1 class="text-3xl font-bold bg-gradient-to-r from-blue-400 to-teal-400 bg-clip-text text-transparent">
+          🚦 Traffic Feed Stream
+        </h1>
+        <p class="text-gray-400 mt-2">
+          Viewing Intersection: <span id="current-intersection" class="text-white font-mono font-bold">Default</span>
+        </p>
+      </div>
+      <div class="flex items-center space-x-4">
+        <label for="intersection-select" class="text-gray-300">Select Intersection:</label>
+        <select id="intersection-select"
+          class="bg-gray-800 text-white border border-gray-600 rounded px-3 py-2 focus:outline-none focus:border-blue-500">
+          <option value="">Default (Overview)</option>
+          <option value="1">Intersection 1</option>
+          <option value="2">Intersection 2</option>
+          <option value="3">Intersection 3</option>
+          <option value="4">Intersection 4</option>
+          <option value="5">Intersection 5</option>
+        </select>
+      </div>
+    </header>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <!-- Latest Message Card -->
-            <div class="bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-700">
-                <h2 class="text-xl font-semibold mb-4 text-white flex items-center">
-                    <span class="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></span>
-                    Live Data
-                </h2>
-                <pre id="latest-data" class="bg-gray-900 p-4 rounded-lg overflow-x-auto text-sm h-96 font-mono"></pre>
-            </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <!-- Latest Message Card -->
+      <div class="bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-700">
+        <h2 class="text-xl font-semibold mb-4 text-white flex items-center justify-between">
+          <span class="flex items-center">
+            <span id="status-indicator" class="w-2 h-2 bg-red-500 rounded-full mr-2"></span>
+            Live Data
+          </span>
+          <button onclick="togglePause()" id="pause-btn"
+            class="text-xs bg-gray-700 hover:bg-gray-600 px-2 py-1 rounded text-gray-300">Pause</button>
+        </h2>
+        <pre id="latest-data" class="bg-gray-900 p-4 rounded-lg overflow-x-auto text-sm h-96 font-mono"></pre>
+      </div>
 
-            <!-- Connection Log Card -->
-            <div class="bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-700">
-                <h2 class="text-xl font-semibold mb-4 text-white">Event Log</h2>
-                <div id="event-log" class="space-y-2 h-96 overflow-y-auto text-sm font-mono p-2">
-                    <!-- Logs will appear here -->
-                </div>
-            </div>
+      <!-- Connection Log Card -->
+      <div class="bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-700">
+        <h2 class="text-xl font-semibold mb-4 text-white">Event Log</h2>
+        <div id="event-log" class="space-y-2 h-96 overflow-y-auto text-sm font-mono p-2">
+          <!-- Logs will appear here -->
         </div>
+      </div>
     </div>
+  </div>
 
-    <script>
-        const output = document.getElementById('latest-data');
-        const log = document.getElementById('event-log');
-        const wsUrl = `ws://${window.location.host}/ws/traffic`;
+  <script>
+    const output = document.getElementById('latest-data');
+    const log = document.getElementById('event-log');
+    const select = document.getElementById('intersection-select');
+    const currentDisplay = document.getElementById('current-intersection');
+    const statusIndicator = document.getElementById('status-indicator');
 
-        function addLog(msg, type = 'info') {
-            const div = document.createElement('div');
-            const time = new Date().toLocaleTimeString();
-            div.innerHTML = `<span class="text-gray-500">[${time}]</span> <span class="${type === 'error' ? 'text-red-400' : 'text-gray-300'}">${msg}</span>`;
-            log.prepend(div);
+    let ws = null;
+    let isPaused = false;
+    let currentId = "";
+
+    function addLog(msg, type = 'info') {
+      const div = document.createElement('div');
+      const time = new Date().toLocaleTimeString();
+      div.innerHTML = `<span class="text-gray-500">[${time}]</span> <span class="${type === 'error' ? 'text-red-400' : 'text-gray-300'}">${msg}</span>`;
+      log.prepend(div);
+    }
+
+    function togglePause() {
+      isPaused = !isPaused;
+      document.getElementById('pause-btn').textContent = isPaused ? "Resume" : "Pause";
+      document.getElementById('pause-btn').className = isPaused
+        ? "text-xs bg-green-900 hover:bg-green-800 text-green-100 px-2 py-1 rounded"
+        : "text-xs bg-gray-700 hover:bg-gray-600 px-2 py-1 rounded text-gray-300";
+    }
+
+    function syntaxHighlight(json) {
+      if (typeof json != 'string') {
+        json = JSON.stringify(json, undefined, 2);
+      }
+      json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
+        var cls = 'json-number';
+        if (/^"/.test(match)) {
+          if (/:$/.test(match)) {
+            cls = 'json-key';
+          } else {
+            cls = 'json-string';
+          }
+        } else if (/true|false/.test(match)) {
+          cls = 'json-boolean';
+        } else if (/null/.test(match)) {
+          cls = 'json-boolean'; // null
         }
+        return '<span class="' + cls + '">' + match + '</span>';
+      });
+    }
 
-        function syntaxHighlight(json) {
-            if (typeof json != 'string') {
-                json = JSON.stringify(json, undefined, 2);
-            }
-            json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-            return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
-                var cls = 'json-number';
-                if (/^"/.test(match)) {
-                    if (/:$/.test(match)) {
-                        cls = 'json-key';
-                    } else {
-                        cls = 'json-string';
-                    }
-                } else if (/true|false/.test(match)) {
-                    cls = 'json-boolean';
-                } else if (/null/.test(match)) {
-                    cls = 'json-boolean'; // null
-                }
-                return '<span class="' + cls + '">' + match + '</span>';
-            });
+    function connect(id) {
+      if (ws) {
+        ws.close();
+      }
+
+      currentId = id;
+      const path = id ? `/ws/traffic/${id}` : '/ws/traffic';
+      const wsUrl = `ws://${window.location.host}${path}`;
+
+      addLog(`Connecting to ${path}...`, 'info');
+      statusIndicator.className = "w-2 h-2 bg-yellow-500 rounded-full mr-2";
+      statusIndicator.classList.remove('animate-pulse');
+
+      ws = new WebSocket(wsUrl);
+
+      ws.onopen = () => {
+        addLog("Connected", 'info');
+        statusIndicator.className = "w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse";
+        currentDisplay.textContent = id ? `Intersection ${id}` : "Default";
+      };
+
+      ws.onmessage = (event) => {
+        if (isPaused) return;
+        try {
+          const data = JSON.parse(event.data);
+          output.innerHTML = syntaxHighlight(data);
+          // Optional: Log only occasionally to avoid spam
+          // addLog(`Received update`, 'info'); 
+        } catch (e) {
+          output.textContent = event.data;
         }
+      };
 
-        function connect() {
-            addLog("Connecting...", 'info');
-            const ws = new WebSocket(wsUrl);
+      ws.onclose = () => {
+        addLog("Disconnected", 'error');
+        statusIndicator.className = "w-2 h-2 bg-red-500 rounded-full mr-2";
+        statusIndicator.classList.remove('animate-pulse');
+      };
 
-            ws.onopen = () => {
-                addLog("Connected", 'info');
-            };
+      ws.onerror = (err) => {
+        addLog("Error occurred", 'error');
+        console.error(err);
+      };
+    }
 
-            ws.onmessage = (event) => {
-                try {
-                    const data = JSON.parse(event.data);
-                    output.innerHTML = syntaxHighlight(data);
-                    addLog(`Received message type: ${data.type || 'unknown'}`, 'info');
-                } catch (e) {
-                    output.textContent = event.data;
-                    addLog("Received raw text", 'info');
-                }
-            };
+    select.addEventListener('change', (e) => {
+      connect(e.target.value);
+    });
 
-            ws.onclose = () => {
-                addLog("Disconnected. Retrying in 3s...", 'error');
-                setTimeout(connect, 3000);
-            };
-
-            ws.onerror = (err) => {
-                addLog("Error occurred", 'error');
-                console.error(err);
-            };
-        }
-
-        connect();
-    </script>
+    // Initial connection
+    connect("");
+  </script>
 </body>
+
 </html>

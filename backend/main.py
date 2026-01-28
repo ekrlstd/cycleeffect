@@ -1,60 +1,76 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
+from fastapi.middleware.cors import CORSMiddleware
 import httpx
 import websockets
 import asyncio
 import json
 import os
+from simulation import TrafficSimulator
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Create 5 independent simulators
+simulators = {i: TrafficSimulator(i) for i in range(1, 6)}
+
+@app.on_event("startup")
+async def startup_event():
+    # Start the simulation loop in the background
+    asyncio.create_task(run_simulations())
+
+async def run_simulations():
+    while True:
+        for sim in simulators.values():
+            sim.update()
+        await asyncio.sleep(0.1)  # 10 Hz update rate
 
 @app.get("/")
 async def get():
     return FileResponse(os.path.join(os.path.dirname(__file__), "index.html"))
 
-TOKEN_URL = "https://gxziopzriagwbiefmrwi.supabase.co/functions/v1/traffic-feed/token"
-STREAM_URL = "wss://gxziopzriagwbiefmrwi.supabase.co/functions/v1/traffic-feed/stream"
-API_KEY = "demo-traffic-feed-key"
+@app.get("/visual")
+async def get_visual():
+    return FileResponse(os.path.join(os.path.dirname(__file__), "visul.html"))
 
-async def get_traffic_token():
-    async with httpx.AsyncClient() as client:
-        response = await client.post(
-            TOKEN_URL,
-            json={"apiKey": API_KEY},
-            headers={"Content-Type": "application/json"}
-        )
-        response.raise_for_status()
-        data = response.json()
-        return data["token"]
+# Keep the original proxy endpoint if strictly needed, but shifting focus to simulation
+# as per request "i want to have 5 different endpoints which simulates different intersection"
+# We will expose the simulation endpoints.
 
 @app.websocket("/ws/traffic")
-async def websocket_traffic_endpoint(client_websocket: WebSocket):
-    await client_websocket.accept()
+async def websocket_traffic_default(websocket: WebSocket):
+    # Default to intersection 1 for backward compatibility
+    await websocket_traffic_endpoint(websocket, 1)
+
+@app.websocket("/ws/traffic/{intersection_id}")
+async def websocket_traffic_endpoint(websocket: WebSocket, intersection_id: int):
+    await websocket.accept()
+    
+    if intersection_id not in simulators:
+        await websocket.close(code=4004, reason="Intersection not found")
+        return
+
+    simulator = simulators[intersection_id]
     
     try:
-        # 1. Get the token
-        token = await get_traffic_token()
-        print(f"Got token: {token[:10]}...") 
-        
-        # 2. Connect to upstream WebSocket
-        upstream_url = f"{STREAM_URL}?token={token}"
-        
-        async with websockets.connect(upstream_url) as upstream_websocket:
-            print("Connected to upstream WebSocket")
+        while True:
+            # Get current state from simulator
+            state = simulator.get_state()
+            await websocket.send_json(state)
+            await asyncio.sleep(0.1)  # Send updates at 10 Hz
             
-            try:
-                while True:
-                    # Receive from upstream
-                    message = await upstream_websocket.recv()
-                    # Forward to client
-                    await client_websocket.send_text(message)
-            except websockets.exceptions.ConnectionClosed:
-                print("Upstream connection closed")
-                await client_websocket.close()
-                
+    except WebSocketDisconnect:
+        print(f"Client disconnected from intersection {intersection_id}")
     except Exception as e:
-        print(f"Error in websocket proxy: {e}")
+        print(f"Error in websocket for intersection {intersection_id}: {e}")
         try:
-            await client_websocket.close()
+            await websocket.close()
         except:
             pass

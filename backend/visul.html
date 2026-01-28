@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Traffic Simulation Visualization</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      background-color: #0f172a;
+      color: #e2e8f0;
+      font-family: 'Inter', sans-serif;
+    }
+
+    .intersection-card {
+      background-color: #1e293b;
+      border-radius: 12px;
+      padding: 16px;
+      border: 1px solid #334155;
+    }
+
+    canvas {
+      background-color: #0f172a;
+      border-radius: 8px;
+      border: 1px solid #475569;
+      width: 100%;
+      aspect-ratio: 1/1;
+    }
+  </style>
+</head>
+
+<body class="p-6">
+  <div class="max-w-7xl mx-auto">
+    <header class="mb-8 flex justify-between items-center border-b border-gray-700 pb-4">
+      <div>
+        <h1 class="text-3xl font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
+          City Traffic Control Center
+        </h1>
+        <p class="text-gray-400 mt-1">Real-time visualization of 5 simulated intersections</p>
+      </div>
+      <div class="flex gap-4 text-sm">
+        <div class="flex items-center"><span class="w-3 h-3 rounded-full bg-blue-500 mr-2"></span>Car</div>
+        <div class="flex items-center"><span class="w-3 h-3 rounded-full bg-yellow-400 mr-2"></span>Taxi</div>
+        <div class="flex items-center"><span class="w-3 h-3 rounded-full bg-orange-500 mr-2"></span>Bus</div>
+        <div class="flex items-center"><span class="w-3 h-3 rounded-full bg-red-500 mr-2 animate-pulse"></span>Ambulance
+        </div>
+        <div class="flex items-center"><span
+            class="w-3 h-3 rounded-full bg-blue-400 border border-white mr-2 animate-pulse"></span>Police</div>
+        <div class="flex items-center"><span class="w-3 h-3 rounded-full bg-green-400 mr-2"></span>Motorbike</div>
+      </div>
+    </header>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <!-- Intersections generate here -->
+      <div id="grid-container" class="contents"></div>
+    </div>
+  </div>
+
+  <script>
+    const objectColors = {
+      'car': '#3b82f6',       // blue-500
+      'taxi': '#facc15',      // yellow-400
+      'bus': '#f97316',       // orange-500
+      'bicycle': '#a855f7',   // purple-500
+      'pedestrian': '#ffffff', // white (if any)
+      'ambulance': '#ef4444', // red-500
+      'police_car': '#0ea5e9', // sky-500
+      'motorbike': '#4ade80'  // green-400
+    };
+
+    class IntersectionView {
+      constructor(id) {
+        this.id = id;
+        this.objects = [];
+        this.signalState = "NS_GREEN";
+        this.container = document.createElement('div');
+        this.container.className = 'intersection-card relative';
+        this.container.innerHTML = `
+                    <div class="flex justify-between items-center mb-2">
+                        <h3 class="font-bold text-lg">Intersection ${id}</h3>
+                        <span class="text-xs px-2 py-1 rounded bg-gray-700" id="status-${id}">Connecting...</span>
+                    </div>
+                    <div class="relative">
+                        <canvas id="canvas-${id}" width="400" height="400"></canvas>
+                        <div class="absolute top-2 right-2 flex flex-col gap-1">
+                            <div id="light-ns-${id}" class="w-3 h-8 rounded-full bg-gray-800 border border-gray-600 flex flex-col justify-between p-0.5">
+                                <div class="w-full h-1/3 rounded-full bg-red-900 opacity-20"></div>
+                                <div class="w-full h-1/3 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.8)]"></div>
+                            </div>
+                            <div class="text-[10px] text-center text-gray-400">NS</div>
+                        </div>
+                    </div>
+                    <div class="mt-2 text-xs text-gray-400 flex justify-between">
+                        <span>Vehicles: <span id="count-${id}" class="text-white font-mono">0</span></span>
+                        <span id="debug-${id}" class="text-gray-500 font-mono">Waiting...</span>
+                    </div>
+                `;
+
+        document.getElementById('grid-container').appendChild(this.container);
+        this.canvas = this.container.querySelector('canvas');
+        this.ctx = this.canvas.getContext('2d');
+        this.statusEl = this.container.querySelector(`#status-${id}`);
+        this.countEl = this.container.querySelector(`#count-${id}`);
+        this.debugEl = this.container.querySelector(`#debug-${id}`);
+        this.nsLight = this.container.querySelector(`#light-ns-${id}`);
+
+        this.connect();
+        this.animate();
+      }
+
+      connect() {
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${protocol}//${window.location.host}/ws/traffic/${this.id}`;
+        this.ws = new WebSocket(wsUrl);
+
+        this.ws.onopen = () => {
+          this.statusEl.textContent = 'Live';
+          this.statusEl.className = 'text-xs px-2 py-1 rounded bg-green-900 text-green-100';
+        };
+
+        this.ws.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            if (data.type === 'update') {
+              this.objects = data.state.objects;
+              this.signalState = data.state.signalState;
+              this.updateStats();
+              this.updateLights();
+
+              // Debug info
+              this.debugEl.textContent = `Lag: ${Date.now() - data.timestamp}ms`;
+            }
+          } catch (e) {
+            console.error(e);
+            this.debugEl.textContent = "Parse Error";
+          }
+        };
+
+        this.ws.onclose = () => {
+          this.statusEl.textContent = 'Offline';
+          this.statusEl.className = 'text-xs px-2 py-1 rounded bg-red-900 text-red-100';
+          setTimeout(() => this.connect(), 3000);
+        };
+      }
+
+      updateStats() {
+        this.countEl.textContent = this.objects.length;
+      }
+
+      updateLights() {
+        // Visualize traffic light primitive
+        // Simple representation: NS Green vs EW Green (calculated inversely)
+        const isNsGreen = this.signalState === 'NS_GREEN';
+
+        this.nsLight.innerHTML = isNsGreen
+          ? `<div class="w-full h-1/3 rounded-full bg-red-900 opacity-20"></div><div class="w-full h-1/3 rounded-full bg-transparent"></div><div class="w-full h-1/3 rounded-full bg-green-500 shadow-[0_0_10px_rgba(34,197,94,1)]"></div>`
+          : `<div class="w-full h-1/3 rounded-full bg-red-600 shadow-[0_0_10px_rgba(220,38,38,1)]"></div><div class="w-full h-1/3 rounded-full bg-transparent"></div><div class="w-full h-1/3 rounded-full bg-green-900 opacity-20"></div>`;
+      }
+
+      drawRoads() {
+        const w = this.canvas.width;
+        const h = this.canvas.height;
+        const cx = w / 2;
+        const cy = h / 2;
+        const roadW = w * 0.2; // 20% width road
+
+        this.ctx.fillStyle = '#334155'; // Road color
+
+        // NS Road
+        this.ctx.fillRect(cx - roadW / 2, 0, roadW, h);
+        // EW Road
+        this.ctx.fillRect(0, cy - roadW / 2, w, roadW);
+
+        // Intersection center
+        this.ctx.fillStyle = '#475569';
+        this.ctx.fillRect(cx - roadW / 2, cy - roadW / 2, roadW, roadW);
+
+        // Lane markings (dashed lines)
+        this.ctx.strokeStyle = '#64748b';
+        this.ctx.setLineDash([10, 10]);
+        this.ctx.lineWidth = 2;
+
+        // NS Divider
+        this.ctx.beginPath();
+        this.ctx.moveTo(cx, 0);
+        this.ctx.lineTo(cx, cy - roadW / 2);
+        this.ctx.moveTo(cx, cy + roadW / 2);
+        this.ctx.lineTo(cx, h);
+        this.ctx.stroke();
+
+        // EW Divider
+        this.ctx.beginPath();
+        this.ctx.moveTo(0, cy);
+        this.ctx.lineTo(cx - roadW / 2, cy);
+        this.ctx.moveTo(cx + roadW / 2, cy);
+        this.ctx.lineTo(w, cy);
+        this.ctx.stroke();
+
+        this.ctx.setLineDash([]);
+      }
+
+      draw() {
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+        this.drawRoads();
+
+        // Draw objects
+        this.objects.forEach(obj => {
+          // Flip Y coordinate because canvas 0 is top, but simulation 0 is bottom (implied by N moving -speed to go up)
+          // Wait, in simulation: 
+          // N1: y=1.0, vy=-speed (decreasing Y). So moving towards 0. 
+          // Canvas 0 is top. So if we map y directly: y=1 (bottom) -> y=0 (top). 
+          // This means N1 moves UP effectively.
+          // S1: y=0.0, vy=speed (increasing Y). So moving towards 1.
+          // Canvas 0 is top. S1 moves DOWN.
+          // This matches the visual intuition (N comes from bottom, S from top).
+
+          const x = obj.x * this.canvas.width;
+          const y = obj.y * this.canvas.height;
+
+          this.ctx.beginPath();
+          // Draw vehicle body
+          this.ctx.arc(x, y, 6, 0, Math.PI * 2);
+          this.ctx.fillStyle = objectColors[obj.type] || '#94a3b8';
+          this.ctx.fill();
+
+          // Draw direction indicator (small dot) based on heading
+          // Heading 0 = N (Up), 90 = E (Right), 180 = S (Down), 270 = W (Left)
+          // In sim: N1 heading 180 (moving to 0? No, N1 vy negative). 
+          // If heading is degrees:
+          const angle = (obj.heading - 90) * (Math.PI / 180);
+          const dx = Math.cos(angle) * 8;
+          const dy = Math.sin(angle) * 8;
+
+          this.ctx.beginPath();
+          this.ctx.arc(x + dx * 0.5, y + dy * 0.5, 2, 0, Math.PI * 2);
+          this.ctx.fillStyle = 'rgba(255,255,255,0.7)';
+          this.ctx.fill();
+
+          // Flash effect for emergency
+          if (['ambulance', 'police_car'].includes(obj.type)) {
+            this.ctx.strokeStyle = `rgba(255, 255, 255, ${Math.abs(Math.sin(Date.now() / 100))})`;
+            this.ctx.lineWidth = 3;
+            this.ctx.stroke();
+          }
+
+          // Draw label
+          this.ctx.fillStyle = 'white';
+          this.ctx.font = '10px sans-serif';
+          this.ctx.textAlign = 'center';
+          // this.ctx.fillText(obj.type[0].toUpperCase(), x, y - 8);
+        });
+      }
+
+      animate() {
+        this.draw();
+        requestAnimationFrame(() => this.animate());
+      }
+    }
+
+    // Initialize 5 views
+    for (let i = 1; i <= 5; i++) {
+      new IntersectionView(i);
+    }
+  </script>
+</body>
+
+</html>
