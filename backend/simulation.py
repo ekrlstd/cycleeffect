@@ -10,7 +10,15 @@ class TrafficSimulator:
         self.objects = {}  # id -> object dict
         self.width = 1.0
         self.height = 1.0
-        self.lanes = ["N1", "S1", "E1", "W1"]
+        self.width = 1.0
+        self.height = 1.0
+        
+        # Customize for Intersection 1 (Single Road E-W)
+        if self.intersection_id == 1:
+            self.lanes = ["E1", "W1"]
+        else:
+            self.lanes = ["N1", "S1", "E1", "W1"]
+            
         self.object_types = ["car", "taxi", "bus", "bicycle", "police_car", "ambulance", "motorbike"]
         
         # Traffic light state
