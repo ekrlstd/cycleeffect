@@ -4,7 +4,7 @@ import '../services/narration_service.dart';
 import '../services/audio_manager.dart';
 
 /// Provider that coordinates between navigation and TTS.
-/// 
+///
 /// Flow:
 /// 1. NavigationProvider calls onApproachingCheckpoint(intersectionId)
 /// 2. NarrationService connects to backend for that intersection
@@ -15,23 +15,23 @@ class NarrationProvider with ChangeNotifier {
   final AudioManager _audioManager = AudioManager();
 
   StreamSubscription<String>? _narrationSubscription;
-  
+
   int _selectedIntersection = 1;
   int get selectedIntersection => _selectedIntersection;
-  
+
   bool _isConnected = false;
   bool get isConnected => _isConnected;
-  
+
   bool _isInitialized = false;
   bool get isInitialized => _isInitialized;
-  
+
   // TTS enabled when navigation is active
   bool _ttsEnabled = false;
   bool get ttsEnabled => _ttsEnabled;
-  
+
   String _lastNarration = "";
   String get lastNarration => _lastNarration;
-  
+
   String _connectionStatus = "Ready";
   String get connectionStatus => _connectionStatus;
 
@@ -44,7 +44,7 @@ class NarrationProvider with ChangeNotifier {
       await _audioManager.init();
       _isInitialized = true;
       print("NarrationProvider: Initialized successfully");
-      
+
       // Subscribe to narration updates from the service
       _narrationSubscription = _narrationService.narrationStream.listen(
         (narrationText) {
@@ -56,7 +56,7 @@ class NarrationProvider with ChangeNotifier {
           notifyListeners();
         },
       );
-      
+
       notifyListeners();
     } catch (e) {
       print("NarrationProvider: Init error: $e");
@@ -72,7 +72,7 @@ class NarrationProvider with ChangeNotifier {
     print("NarrationProvider: Navigation started, TTS enabled");
     notifyListeners();
   }
-  
+
   /// Called when navigation stops - disables TTS
   void onNavigationStopped() {
     _ttsEnabled = false;
@@ -85,10 +85,10 @@ class NarrationProvider with ChangeNotifier {
   /// Called when approaching a checkpoint - switch to that intersection's narration
   void onApproachingCheckpoint(int intersectionId) {
     if (intersectionId < 1 || intersectionId > 5) return;
-    
+
     print("NarrationProvider: Approaching checkpoint $intersectionId");
     _selectedIntersection = intersectionId;
-    
+
     // Connect to backend for this intersection
     _narrationService.start(intersectionId: intersectionId);
     _isConnected = true;
@@ -112,7 +112,7 @@ class NarrationProvider with ChangeNotifier {
       print("NarrationProvider: Received narration: $narrationText");
       _lastNarration = narrationText;
       notifyListeners();
-      
+
       // Only speak if TTS is enabled (navigation active)
       if (_ttsEnabled) {
         print("NarrationProvider: Speaking narration via TTS...");
@@ -125,7 +125,27 @@ class NarrationProvider with ChangeNotifier {
       print("NarrationProvider: Process narration error: $e");
     }
   }
-  
+
+  /// Mock an SLM response manually (for demo purposes)
+  Future<void> mockSLMResponse(String message) async {
+    print("NarrationProvider: Mocking SLM response: $message");
+    // Force TTS enablement for this mock message if not already enabled
+    bool originallyEnabled = _ttsEnabled;
+    if (!_ttsEnabled) {
+      _ttsEnabled = true;
+    }
+
+    await _processNarration(message);
+
+    // Restore TTS state if it was disabled
+    if (!originallyEnabled) {
+      // Small delay to ensure speech starts before disabling (though processNarration awaits speak)
+      // Actually _processNarration awaits _audioManager.speak, so it should be fine.
+      // But if we want to leave it enabled for the duration of the speech, that's handled by await.
+      _ttsEnabled = false;
+    }
+  }
+
   @override
   void dispose() {
     _narrationSubscription?.cancel();

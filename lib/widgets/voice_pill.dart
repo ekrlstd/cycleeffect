@@ -13,10 +13,12 @@ class VoicePill extends StatefulWidget {
   State<VoicePill> createState() => _VoicePillState();
 }
 
-class _VoicePillState extends State<VoicePill> with SingleTickerProviderStateMixin {
+class _VoicePillState extends State<VoicePill>
+    with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   final Random _random = Random();
   List<double> _barHeights = List.generate(14, (_) => 0.3);
+  bool _isMocking = false;
 
   @override
   void initState() {
@@ -49,7 +51,7 @@ class _VoicePillState extends State<VoicePill> with SingleTickerProviderStateMix
       builder: (context, narrationProvider, navProvider, child) {
         final isNavigating = navProvider.isNavigating;
         final currentCheckpoint = navProvider.currentCheckpoint;
-        
+
         return Column(
           children: [
             // Navigation Status Header
@@ -65,29 +67,33 @@ class _VoicePillState extends State<VoicePill> with SingleTickerProviderStateMix
                     decoration: BoxDecoration(
                       color: isNavigating ? Colors.greenAccent : Colors.grey,
                       shape: BoxShape.circle,
-                      boxShadow: isNavigating ? [
-                        BoxShadow(
-                          color: Colors.greenAccent.withOpacity(0.5),
-                          blurRadius: 8,
-                          spreadRadius: 2,
-                        ),
-                      ] : [],
+                      boxShadow: isNavigating
+                          ? [
+                              BoxShadow(
+                                color: Colors.greenAccent.withOpacity(0.5),
+                                blurRadius: 8,
+                                spreadRadius: 2,
+                              ),
+                            ]
+                          : [],
                     ),
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    isNavigating 
-                        ? 'Navigating to Checkpoint $currentCheckpoint' 
+                    isNavigating
+                        ? 'Navigating to Checkpoint $currentCheckpoint'
                         : 'Tap play on map to start',
                     style: AppTheme.bodySmall.copyWith(
-                      color: isNavigating ? Colors.greenAccent : AppTheme.textSecondary,
+                      color: isNavigating
+                          ? Colors.greenAccent
+                          : AppTheme.textSecondary,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
                 ],
               ),
             ),
-            
+
             // Connection Status
             Padding(
               padding: const EdgeInsets.only(bottom: 8.0),
@@ -98,7 +104,9 @@ class _VoicePillState extends State<VoicePill> with SingleTickerProviderStateMix
                     width: 6,
                     height: 6,
                     decoration: BoxDecoration(
-                      color: narrationProvider.isConnected ? Colors.greenAccent : Colors.orange,
+                      color: narrationProvider.isConnected
+                          ? Colors.greenAccent
+                          : Colors.orange,
                       shape: BoxShape.circle,
                     ),
                   ),
@@ -113,16 +121,20 @@ class _VoicePillState extends State<VoicePill> with SingleTickerProviderStateMix
                 ],
               ),
             ),
-            
+
             // Last Narration Text
             if (narrationProvider.lastNarration.isNotEmpty)
               Padding(
-                padding: const EdgeInsets.only(bottom: 8.0, left: 16, right: 16),
+                padding: const EdgeInsets.only(
+                  bottom: 8.0,
+                  left: 16,
+                  right: 16,
+                ),
                 child: Text(
                   narrationProvider.lastNarration,
                   style: AppTheme.bodySmall.copyWith(
                     color: AppTheme.textSecondary,
-                    fontStyle: FontStyle.italic
+                    fontStyle: FontStyle.italic,
                   ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
@@ -139,8 +151,8 @@ class _VoicePillState extends State<VoicePill> with SingleTickerProviderStateMix
                 borderRadius: BorderRadius.circular(9999),
                 color: AppTheme.cardBackground.withOpacity(0.65),
                 border: Border.all(
-                  color: isNavigating 
-                      ? Colors.greenAccent.withOpacity(0.5) 
+                  color: isNavigating
+                      ? Colors.greenAccent.withOpacity(0.5)
                       : AppTheme.borderTop.withOpacity(0.5),
                   width: isNavigating ? 2 : 1,
                 ),
@@ -149,9 +161,11 @@ class _VoicePillState extends State<VoicePill> with SingleTickerProviderStateMix
                 children: [
                   // AI sparkle icon
                   Icon(
-                    isNavigating ? Icons.volume_up_rounded : Icons.volume_off_rounded,
-                    color: isNavigating 
-                        ? Colors.greenAccent 
+                    isNavigating
+                        ? Icons.volume_up_rounded
+                        : Icons.volume_off_rounded,
+                    color: isNavigating
+                        ? Colors.greenAccent
                         : AppTheme.textPrimary.withOpacity(0.5),
                     size: 24,
                   ),
@@ -163,17 +177,23 @@ class _VoicePillState extends State<VoicePill> with SingleTickerProviderStateMix
                       children: List.generate(14, (index) {
                         final normalizedPos = index / 13;
                         final taper = 0.2 + 0.8 * pow(1 - normalizedPos, 1.5);
-                        final heightMultiplier = isNavigating ? 1.5 : 0.5;
+                        final heightMultiplier = (isNavigating || _isMocking)
+                            ? 1.5
+                            : 0.5;
 
                         return Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 3),
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 200),
                             width: 4,
-                            height: 32 * _barHeights[index] * taper * heightMultiplier,
+                            height:
+                                32 *
+                                _barHeights[index] *
+                                taper *
+                                heightMultiplier,
                             decoration: BoxDecoration(
-                              color: isNavigating 
-                                  ? Colors.greenAccent 
+                              color: isNavigating
+                                  ? Colors.greenAccent
                                   : AppTheme.textPrimary.withOpacity(0.3),
                               borderRadius: BorderRadius.circular(2),
                             ),
@@ -182,28 +202,58 @@ class _VoicePillState extends State<VoicePill> with SingleTickerProviderStateMix
                       }),
                     ),
                   ),
-                  // TTS status icon
-                  Container(
-                    width: 52,
-                    height: 52,
-                    decoration: BoxDecoration(
-                      color: isNavigating 
-                          ? Colors.greenAccent 
-                          : AppTheme.cardBackground,
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: isNavigating 
-                            ? Colors.greenAccent.withOpacity(0.5)
-                            : AppTheme.borderSides,
-                        width: 1,
+                  // TTS status icon / Interaction Button
+                  GestureDetector(
+                    onTap: () {
+                      if (_isMocking || isNavigating)
+                        return; // Prevent double trigger or interference
+
+                      setState(() {
+                        _isMocking = true;
+                      });
+
+                      // Wait 9 seconds before replying
+                      Future.delayed(const Duration(seconds: 9), () {
+                        if (!mounted) return;
+
+                        narrationProvider.mockSLMResponse(
+                          "Yes there is an ambulance which turned onto your road likely coming up behind you soon.",
+                        );
+
+                        // Turn off animation after speech (approx 5s)
+                        Future.delayed(const Duration(seconds: 5), () {
+                          if (mounted) {
+                            setState(() {
+                              _isMocking = false;
+                            });
+                          }
+                        });
+                      });
+                    },
+                    child: Container(
+                      width: 52,
+                      height: 52,
+                      decoration: BoxDecoration(
+                        color: (isNavigating || _isMocking)
+                            ? Colors.greenAccent
+                            : AppTheme.cardBackground,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: (isNavigating || _isMocking)
+                              ? Colors.greenAccent.withOpacity(0.5)
+                              : AppTheme.borderSides,
+                          width: 1,
+                        ),
                       ),
-                    ),
-                    child: Icon(
-                      isNavigating ? Icons.graphic_eq : Icons.mic_off_rounded,
-                      color: isNavigating 
-                          ? AppTheme.background 
-                          : AppTheme.textSecondary,
-                      size: 26,
+                      child: Icon(
+                        (isNavigating || _isMocking)
+                            ? Icons.graphic_eq
+                            : Icons.mic_off_rounded,
+                        color: (isNavigating || _isMocking)
+                            ? AppTheme.background
+                            : AppTheme.textSecondary,
+                        size: 26,
+                      ),
                     ),
                   ),
                 ],
