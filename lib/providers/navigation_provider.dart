@@ -11,13 +11,12 @@ import 'package:latlong2/latlong.dart';
 /// 3. When approaching checkpoint → triggers narration for that intersection
 /// 4. When passing checkpoint → switches to next
 class NavigationProvider with ChangeNotifier {
-  // 5 Checkpoint locations (widely spaced, matching map_card.dart)
+  // 4 Checkpoint locations (Synced with map_card.dart - Route now ends at D)
   static const List<LatLng> checkpoints = [
-    LatLng(57.69841, 11.89636), // Checkpoint 1
-    LatLng(57.69992, 11.89583), // Checkpoint 2
-    LatLng(57.6988, 11.9025),   // Checkpoint 3 (further out)
-    LatLng(57.7000, 11.9145),   // Checkpoint 4 (further out)
-    LatLng(57.7015, 11.9280),   // Checkpoint 5 (destination)
+    LatLng(57.69841, 11.89636), // Checkpoint 1 (Junction A)
+    LatLng(57.69992, 11.89583), // Checkpoint 2 (Junction B)
+    LatLng(57.6988, 11.9025),   // Checkpoint 3 (Junction C)
+    LatLng(57.7000, 11.9145),   // Checkpoint 4 (Destination - Junction D)
   ];
   
   // Threshold distance to trigger checkpoint narration (meters)
@@ -152,8 +151,7 @@ class NavigationProvider with ChangeNotifier {
       case 0: return "Start";
       case 1: return "Junction A";
       case 2: return "Junction B";
-      case 3: return "Junction C";
-      case 4: return "Destination";
+      case 3: return "Destination"; // Final point (Intersection 4)
       default: return "Checkpoint ${index + 1}";
     }
   }

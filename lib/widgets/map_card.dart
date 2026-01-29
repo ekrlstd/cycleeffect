@@ -222,23 +222,8 @@ class _MapCardState extends State<MapCard> with SingleTickerProviderStateMixin {
     LatLng(57.6995, 11.9115),
     LatLng(57.6998, 11.9130),
     
-    // === CHECKPOINT 4 ===
-    LatLng(57.7000, 11.9145),
-    
-    // Checkpoint 4 -> Checkpoint 5 (final stretch)
-    LatLng(57.7002, 11.9160),
-    LatLng(57.7005, 11.9180),
-    LatLng(57.7008, 11.9200),
-    LatLng(57.7010, 11.9220),
-    LatLng(57.7012, 11.9240),
-    LatLng(57.7014, 11.9260),
-    
-    // === CHECKPOINT 5 (Destination) ===
-    LatLng(57.7015, 11.9280),
-    
-    // Continue past destination
-    LatLng(57.7018, 11.9300),
-    LatLng(57.7020, 11.9320),
+    // === CHECKPOINT 4 (Fixed - New Destination) ===
+    LatLng(57.70000, 11.91450),
   ];
 
   // Widely spaced checkpoint (intersection) positions
@@ -246,8 +231,7 @@ class _MapCardState extends State<MapCard> with SingleTickerProviderStateMixin {
     LatLng(57.69841, 11.89636), // Checkpoint 1
     LatLng(57.69992, 11.89583), // Checkpoint 2
     LatLng(57.6988, 11.9025),    // Checkpoint 3 (further out)
-    LatLng(57.7000, 11.9145),    // Checkpoint 4 (further out)
-    LatLng(57.7015, 11.9280),    // Checkpoint 5 (destination)
+    LatLng(57.7000, 11.9145),    // Checkpoint 4 (Destination)
   ];
 
   late final List<double> _cumDist;
@@ -255,7 +239,7 @@ class _MapCardState extends State<MapCard> with SingleTickerProviderStateMixin {
   
   // Timing configuration
   final List<Map<String, dynamic>> _stops = [];
-  static const double _driveDuration = 90.0; // 90 seconds total (~15-18 sec per segment)
+  static const double _driveDuration = 75.0; // Reduced for shorter path
   static const double _stopDuration = 3.0;   // 3 second pause at each checkpoint
 
   @override

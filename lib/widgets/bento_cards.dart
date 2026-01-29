@@ -31,11 +31,10 @@ class UpcomingIntersectionsCard extends StatelessWidget {
   
   // Checkpoint names
   static const List<String> checkpointNames = [
-    'Junction A (Main St)',
-    'Junction B (Park Ave)',
-    'Junction C (River Rd)',
-    'Junction D (Oak Blvd)',
-    'Destination',
+    'Junction A (Oljevägen)',
+    'Junction B (Bräcke)',
+    'Junction C (Bräcke)',
+    'final destination',
   ];
 
   @override
