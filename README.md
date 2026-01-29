@@ -7,7 +7,7 @@
   <img src="https://img.shields.io/badge/On--Device_AI-FF6F00?style=for-the-badge&logo=tensorflow&logoColor=white" alt="On-Device AI"/>
 </p>
 
-<h1 align="center">Headsup</h1>
+<h1 align="center">PreVue</h1>
 <h3 align="center">Your AI Co-Pilot for Smarter, Safer Driving</h3>
 
 <p align="center">
@@ -28,16 +28,16 @@ Current navigation apps like **Waze** and **Google Maps** rely on crowdsourced d
 
 ## 💡 Our Solution
 
-**Headsup** is an intelligent traffic assistant that understands _your_ context—your speed, heading, and position—and delivers spoken, actionable insights in real-time.
+**PreVue** is an intelligent traffic assistant that understands _your_ context—your speed, heading, and position—and delivers spoken, actionable insights in real-time.
 
 ```
 Waze: "Traffic at intersection"
-Headsup: "Three vehicles approaching from your left at the roundabout. Yield before entering."
+PreVue: "Three vehicles approaching from your left at the roundabout. Yield before entering."
 ```
 
 ### What Makes Us Different
 
-| Feature      | Waze/Google Maps       | Headsup                              |
+| Feature      | Waze/Google Maps       | PreVue                              |
 | ------------ | ---------------------- | ------------------------------------ |
 | Data Source  | Crowdsourced (delayed) | **Government APIs + AI** (real-time) |
 | Processing   | Cloud-based            | **On-device** (instant)              |
@@ -156,7 +156,7 @@ Aakrish Lama
 GNU General Public License v3.0 — See [LICENSE](LICENSE) for details.
 
 <p align="center">
-  <strong>Headsup</strong> — Because every second counts on the road.
+  <strong>PreVue</strong> — Because every second counts on the road.
   <br/><br/>
   <img src="https://img.shields.io/badge/Built_for-Safer_Roads-red?style=for-the-badge" alt="Built for Safer Roads"/>
 </p>
