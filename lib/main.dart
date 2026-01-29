@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import 'providers/app_provider.dart';
+import 'providers/narration_provider.dart';
+import 'providers/navigation_provider.dart';
 import 'theme/app_theme.dart';
 import 'widgets/greeting_header.dart';
 import 'widgets/map_card.dart';
@@ -37,8 +39,28 @@ class HeadsupApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => AppProvider(),
+    // Create providers and wire up callbacks
+    final narrationProvider = NarrationProvider();
+    final navigationProvider = NavigationProvider();
+    
+    // Wire NavigationProvider callbacks to NarrationProvider
+    navigationProvider.onApproachingCheckpoint = (intersectionId) {
+      narrationProvider.onApproachingCheckpoint(intersectionId);
+    };
+    navigationProvider.onNavigationStateChanged = (isNavigating) {
+      if (isNavigating) {
+        narrationProvider.onNavigationStarted();
+      } else {
+        narrationProvider.onNavigationStopped();
+      }
+    };
+    
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => AppProvider()),
+        ChangeNotifierProvider.value(value: narrationProvider),
+        ChangeNotifierProvider.value(value: navigationProvider),
+      ],
       child: MaterialApp(
         title: 'Headsup',
         debugShowCheckedModeBanner: false,
@@ -101,18 +123,10 @@ class _HomePageState extends State<HomePage> {
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Column(
                       children: [
-                        // Row 1: Intersections (full width)
+                        // Row 1: Upcoming Intersections (full width)
                         const Expanded(
                           flex: 1,
                           child: UpcomingIntersectionsCard(),
-                        ),
-
-                        const SizedBox(height: 12),
-
-                        // Row 2: Speed & Distance
-                        const SizedBox(
-                          height: 125,
-                          child: SpeedDistanceCard(),
                         ),
                       ],
                     ),

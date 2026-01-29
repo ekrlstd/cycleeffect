@@ -84,6 +84,53 @@ class AppTheme {
   }
 
   static ThemeData get lightTheme => darkTheme;
+
+  // Text Styles (Direct Access)
+  static TextStyle get headlineLarge => GoogleFonts.inter(
+    fontSize: 32,
+    fontWeight: FontWeight.bold,
+    color: textPrimary,
+  );
+
+  static TextStyle get headlineMedium => GoogleFonts.inter(
+    fontSize: 24,
+    fontWeight: FontWeight.bold,
+    color: textPrimary,
+  );
+  
+  static TextStyle get titleLarge => GoogleFonts.inter(
+    fontSize: 18,
+    fontWeight: FontWeight.w600,
+    color: textPrimary,
+  );
+
+  static TextStyle get titleMedium => GoogleFonts.inter(
+    fontSize: 16,
+    fontWeight: FontWeight.w500,
+    color: textPrimary,
+  );
+
+  static TextStyle get bodyLarge => GoogleFonts.inter(
+    fontSize: 16, 
+    color: textPrimary,
+  );
+
+  static TextStyle get bodyMedium => GoogleFonts.inter(
+    fontSize: 14, 
+    color: textPrimary,
+  );
+
+  static TextStyle get bodySmall => GoogleFonts.inter(
+    fontSize: 12, 
+    color: textPrimary,
+  );
+
+  static TextStyle get labelSmall => GoogleFonts.inter(
+    fontSize: 11, 
+    fontWeight: FontWeight.w600,
+    color: textPrimary.withOpacity(0.5),
+    letterSpacing: 0.5,
+  );
 }
 
 /// A card container with gradient border effect.
