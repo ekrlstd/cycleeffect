@@ -11,23 +11,58 @@ class OnboardingPage extends StatefulWidget {
   State<OnboardingPage> createState() => _OnboardingPageState();
 }
 
-class _OnboardingPageState extends State<OnboardingPage> {
+class _OnboardingPageState extends State<OnboardingPage>
+    with SingleTickerProviderStateMixin {
   final TextEditingController _nameController = TextEditingController();
   final FocusNode _focusNode = FocusNode();
 
+  late AnimationController _sunriseController;
+  late Animation<double> _positionAnimation;
+  late Animation<double> _opacityAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _sunriseController = AnimationController(
+      duration: const Duration(milliseconds: 1500),
+      vsync: this,
+    );
+
+    _positionAnimation = Tween<double>(
+      begin: -0.5,
+      end: -0.85,
+    ).animate(CurvedAnimation(
+      parent: _sunriseController,
+      curve: Curves.easeOutCubic,
+    ));
+
+    _opacityAnimation = Tween<double>(
+      begin: 0.1,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _sunriseController,
+      curve: Curves.easeOut,
+    ));
+
+    _sunriseController.forward();
+  }
+
   @override
   void dispose() {
+    _sunriseController.dispose();
     _nameController.dispose();
     _focusNode.dispose();
     super.dispose();
   }
 
-  void _onContinue() {
+  Future<void> _onContinue() async {
     final name = _nameController.text.trim();
     if (name.isNotEmpty) {
       final provider = Provider.of<AppProvider>(context, listen: false);
-      provider.setUsername(name);
-      Navigator.of(context).pushReplacementNamed('/home');
+      await provider.setUsername(name);
+      if (mounted) {
+        Navigator.of(context).pushReplacementNamed('/home');
+      }
     }
   }
 
@@ -41,32 +76,40 @@ class _OnboardingPageState extends State<OnboardingPage> {
       resizeToAvoidBottomInset: false,
       body: Stack(
         children: [
-          // Sun gradient background - U shape curve with warm colors at top
-          Positioned(
-            top: -screenHeight * 0.85,
-            left: -screenWidth * 0.75,
-            child: Container(
-              width: screenWidth * 2.5,
-              height: screenHeight * 2,
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  center: Alignment.center,
-                  radius: 0.5,
-                  colors: [
-                    Color(0xFFFC9444),
-                    Color(0xFFFC9444),
-                    Color(0xFFF06A34),
-                    Color(0xFFE23824),
-                    Color(0xFFB02A1A),
-                    Color(0xFF5A1510),
-                    Color(0xFF200A08),
-                    Color(0xFF060606),
-                  ],
-                  stops: [0.0, 0.3, 0.45, 0.55, 0.65, 0.75, 0.85, 1.0],
+          // Sun gradient background - animated sunrise effect
+          AnimatedBuilder(
+            animation: _sunriseController,
+            builder: (context, child) {
+              return Positioned(
+                top: screenHeight * _positionAnimation.value,
+                left: -screenWidth * 0.75,
+                child: Opacity(
+                  opacity: _opacityAnimation.value,
+                  child: Container(
+                    width: screenWidth * 2.5,
+                    height: screenHeight * 2,
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: RadialGradient(
+                        center: Alignment.center,
+                        radius: 0.5,
+                        colors: [
+                          Color(0xFFFC9444),
+                          Color(0xFFFC9444),
+                          Color(0xFFF06A34),
+                          Color(0xFFE23824),
+                          Color(0xFFB02A1A),
+                          Color(0xFF5A1510),
+                          Color(0xFF200A08),
+                          Color(0xFF060606),
+                        ],
+                        stops: [0.0, 0.3, 0.45, 0.55, 0.65, 0.75, 0.85, 1.0],
+                      ),
+                    ),
+                  ),
                 ),
-              ),
-            ),
+              );
+            },
           ),
 
           // Content
@@ -139,7 +182,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
                     ),
                   ),
 
-                  SizedBox(height: screenHeight * 0.08),
+                  SizedBox(height: screenHeight * 0.05),
 
                   // Input field - positioned higher
                   Padding(
@@ -206,6 +249,42 @@ class _OnboardingPageState extends State<OnboardingPage> {
                     ),
                   ),
 
+                  const SizedBox(height: 48),
+
+                  // Promises card
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 32),
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: AppTheme.cardBackground.withValues(alpha: 0.65),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: AppTheme.borderTop.withValues(alpha: 0.5),
+                          width: 1,
+                        ),
+                      ),
+                      child: Column(
+                        children: [
+                          _PromiseItem(
+                            title: 'Active Safety',
+                            description: 'Real-time hazard detection and proactive alerts using government API\u0027s.',
+                          ),
+                          const SizedBox(height: 12),
+                          _PromiseItem(
+                            title: 'AV-Ready',
+                            description: 'Built with autonomous vehicles in mind. Ready for the future.',
+                          ),
+                          const SizedBox(height: 12),
+                          _PromiseItem(
+                            title: 'Privacy First',
+                            description: 'Your data stays on your device. No tracking, no ads. Your data is strictly yours.',
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
                   const Spacer(),
                 ],
               ),
@@ -218,9 +297,9 @@ class _OnboardingPageState extends State<OnboardingPage> {
             left: screenWidth * 0.025,
             right: screenWidth * 0.025,
             child: Container(
-              padding: const EdgeInsets.only(left: 20, right: 20, top: 14, bottom: 44),
+              padding: const EdgeInsets.only(left: 20, right: 20, top: 14, bottom: 64),
               decoration: BoxDecoration(
-                color: const Color(0xFF000000),
+                color: const Color(0xFF030303),
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Row(
@@ -238,7 +317,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
                     'CAI x GoWest 2026 Hackathon',
                     style: GoogleFonts.inter(
                       fontSize: 12,
-                      fontWeight: FontWeight.w500,
+                      fontWeight: FontWeight.w400,
                       color: AppTheme.textPrimary.withValues(alpha: 0.6),
                     ),
                   ),
@@ -248,6 +327,42 @@ class _OnboardingPageState extends State<OnboardingPage> {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _PromiseItem extends StatelessWidget {
+  final String title;
+  final String description;
+
+  const _PromiseItem({
+    required this.title,
+    required this.description,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: GoogleFonts.inter(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: AppTheme.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          description,
+          style: GoogleFonts.inter(
+            fontSize: 11,
+            fontWeight: FontWeight.w400,
+            color: AppTheme.textPrimary.withValues(alpha: 0.5),
+          ),
+        ),
+      ],
     );
   }
 }

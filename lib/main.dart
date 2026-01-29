@@ -46,9 +46,51 @@ class HeadsupApp extends StatelessWidget {
         theme: AppTheme.darkTheme,
         initialRoute: '/',
         routes: {
-          '/': (context) => const OnboardingPage(),
+          '/': (context) => const SplashPage(),
+          '/onboarding': (context) => const OnboardingPage(),
           '/home': (context) => const HomePage(),
         },
+      ),
+    );
+  }
+}
+
+/// Splash page that checks for existing username and routes accordingly.
+class SplashPage extends StatefulWidget {
+  const SplashPage({super.key});
+
+  @override
+  State<SplashPage> createState() => _SplashPageState();
+}
+
+class _SplashPageState extends State<SplashPage> {
+  @override
+  void initState() {
+    super.initState();
+    _checkOnboarding();
+  }
+
+  Future<void> _checkOnboarding() async {
+    final provider = Provider.of<AppProvider>(context, listen: false);
+    await provider.loadUsername();
+
+    if (!mounted) return;
+
+    if (provider.hasCompletedOnboarding) {
+      Navigator.of(context).pushReplacementNamed('/home');
+    } else {
+      Navigator.of(context).pushReplacementNamed('/onboarding');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      backgroundColor: Color(0xFF060606),
+      body: Center(
+        child: CircularProgressIndicator(
+          color: Color(0xFFFC9444),
+        ),
       ),
     );
   }
