@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../config.dart';
 import '../models/traffic_update.dart';
 import '../models/user_location.dart';
@@ -29,6 +30,10 @@ class AppProvider extends ChangeNotifier {
   TtsState _ttsState = TtsState.stopped;
   bool _isInitialized = false;
   String? _error;
+  String? _username;
+
+  // Storage key
+  static const String _usernameKey = 'username';
 
   // Getters
   UserLocation? get userLocation => _userLocation;
@@ -39,6 +44,23 @@ class AppProvider extends ChangeNotifier {
   String? get error => _error;
   bool get isConnected => _connectionState == ConnectionState.connected;
   bool get isSpeaking => _ttsState == TtsState.speaking;
+  String get username => _username ?? 'Friend';
+  bool get hasCompletedOnboarding => _username != null;
+
+  /// Loads the username from persistent storage.
+  Future<void> loadUsername() async {
+    final prefs = await SharedPreferences.getInstance();
+    _username = prefs.getString(_usernameKey);
+    notifyListeners();
+  }
+
+  /// Sets the user's name and saves to persistent storage.
+  Future<void> setUsername(String name) async {
+    _username = name;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_usernameKey, name);
+    notifyListeners();
+  }
 
   /// Initializes all services and starts tracking.
   Future<void> initialize() async {

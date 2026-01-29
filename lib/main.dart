@@ -6,6 +6,7 @@ import 'providers/app_provider.dart';
 import 'providers/narration_provider.dart';
 import 'providers/navigation_provider.dart';
 import 'theme/app_theme.dart';
+import 'pages/onboarding_page.dart';
 import 'widgets/greeting_header.dart';
 import 'widgets/map_card.dart';
 import 'widgets/bento_cards.dart';
@@ -65,7 +66,53 @@ class HeadsupApp extends StatelessWidget {
         title: 'Headsup',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.darkTheme,
-        home: const HomePage(),
+        initialRoute: '/',
+        routes: {
+          '/': (context) => const SplashPage(),
+          '/onboarding': (context) => const OnboardingPage(),
+          '/home': (context) => const HomePage(),
+        },
+      ),
+    );
+  }
+}
+
+/// Splash page that checks for existing username and routes accordingly.
+class SplashPage extends StatefulWidget {
+  const SplashPage({super.key});
+
+  @override
+  State<SplashPage> createState() => _SplashPageState();
+}
+
+class _SplashPageState extends State<SplashPage> {
+  @override
+  void initState() {
+    super.initState();
+    _checkOnboarding();
+  }
+
+  Future<void> _checkOnboarding() async {
+    final provider = Provider.of<AppProvider>(context, listen: false);
+    await provider.loadUsername();
+
+    if (!mounted) return;
+
+    if (provider.hasCompletedOnboarding) {
+      Navigator.of(context).pushReplacementNamed('/home');
+    } else {
+      Navigator.of(context).pushReplacementNamed('/onboarding');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      backgroundColor: Color(0xFF060606),
+      body: Center(
+        child: CircularProgressIndicator(
+          color: Color(0xFFFC9444),
+        ),
       ),
     );
   }
@@ -110,7 +157,7 @@ class _HomePageState extends State<HomePage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Greeting header
-                const GreetingHeader(username: 'John'),
+                GreetingHeader(username: provider.username),
 
                 // Map card (~40% of viewport)
                 const MapCard(),
