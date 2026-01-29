@@ -161,6 +161,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import '../models/traffic_update.dart';
 import '../providers/app_provider.dart';
+import '../providers/navigation_provider.dart';
 import '../theme/app_theme.dart';
 
 /// Map card widget with animated car driving along real roads.
@@ -174,110 +175,88 @@ class MapCard extends StatefulWidget {
 class _MapCardState extends State<MapCard> with SingleTickerProviderStateMixin {
   late AnimationController _controller;
 
-  // Sequential road path:
-  // A (Start) -> B (Int 2) -> C (New Point) -> D (Int 4) -> E (Int 5)
+  // Extended road path with checkpoint (intersection) markers spaced further apart
+  // Navigation starts BEFORE checkpoint 1 and moves toward it
   static final List<LatLng> _roadPath = [
-    // A: Start
-    LatLng(57.698404, 11.896335),
-    // A -> B segments
-    LatLng(57.698743, 11.896048),
-    LatLng(57.699017, 11.895898),
-    LatLng(57.69905, 11.895885),
-    LatLng(57.699352, 11.895756),
-    LatLng(57.699461, 11.895724),
-    LatLng(57.699569, 11.895717),
-    LatLng(57.699753, 11.895737),
-    LatLng(57.699844, 11.89577),
-    LatLng(57.699912, 11.895823),
+    // === STARTING ZONE (before checkpoint 1) ===
+    // Extended start - heading towards checkpoint 1
+    LatLng(57.6960, 11.8920),   // Far start point
+    LatLng(57.6965, 11.8925),
+    LatLng(57.6970, 11.8930),
+    LatLng(57.6975, 11.8935),
+    LatLng(57.6978, 11.8940),
+    LatLng(57.6980, 11.8950),
+    LatLng(57.6982, 11.8955),
+    LatLng(57.6984, 11.8963),   // Approaching checkpoint 1
+
+    // === CHECKPOINT 1 ===
+    LatLng(57.69841, 11.89636),
     
-    // B: Intersection 2
+    // Checkpoint 1 -> Checkpoint 2 (longer path)
+    LatLng(57.6988, 11.8960),
+    LatLng(57.6992, 11.8958),
+    LatLng(57.6996, 11.8958),
+    LatLng(57.6999, 11.8958),
+    
+    // === CHECKPOINT 2 ===
     LatLng(57.69992, 11.89583),
     
-    // B -> C Geometry (Restored)
-    LatLng(57.700016, 11.895977),
-    LatLng(57.700045, 11.896049),
-    LatLng(57.700066, 11.896139),
-    LatLng(57.70009, 11.896297),
-    LatLng(57.700099, 11.896459),
-    LatLng(57.700096, 11.896544),
-    LatLng(57.700091, 11.896592),
-    LatLng(57.700077, 11.896657),
-    LatLng(57.70006, 11.896717),
-    LatLng(57.700033, 11.896788),
-    LatLng(57.700008, 11.896842),
-    LatLng(57.699981, 11.896879),
-    LatLng(57.699914, 11.896952),
-    LatLng(57.699892, 11.896964),
-
-    // C: New Stop Point (Corrected)
-    LatLng(57.699788, 11.897004), 
-
-    // C -> D Geometry (Restored)
-    LatLng(57.699768, 11.897019),
-    LatLng(57.699711, 11.897045),
-    LatLng(57.699644, 11.897084),
-    LatLng(57.699624, 11.897096),
-    LatLng(57.699603, 11.897131),
-    LatLng(57.699576, 11.897181),
-    LatLng(57.699553, 11.897274),
-    LatLng(57.699496, 11.897696),
-    LatLng(57.699495, 11.897698),
-    LatLng(57.699482, 11.897936),
-    LatLng(57.699437, 11.898128),
-    LatLng(57.69942, 11.89819),
-    LatLng(57.699396, 11.898255),
-    LatLng(57.699374, 11.898293),
-    LatLng(57.699327, 11.898364),
-    LatLng(57.699147, 11.898616),
-    LatLng(57.699094, 11.898688),
+    // Checkpoint 2 -> Checkpoint 3 (extended curve path)
+    LatLng(57.7001, 11.8962),
+    LatLng(57.7002, 11.8968),
+    LatLng(57.7001, 11.8975),
+    LatLng(57.6999, 11.8982),
+    LatLng(57.6996, 11.8990),
+    LatLng(57.6993, 11.9000),
+    LatLng(57.6990, 11.9015),
     
-    // D: Old C / Intersection 4
-    LatLng(57.69909, 11.89868),
+    // === CHECKPOINT 3 ===
+    LatLng(57.6988, 11.9025),
     
-    // D -> E segments (Original Segment 4->5)
-    LatLng(57.699041, 11.898809),
-    LatLng(57.699031, 11.898912),
-    LatLng(57.69904, 11.89901),
-    LatLng(57.699056, 11.899142),
-    LatLng(57.699086, 11.899278),
-    LatLng(57.699126, 11.899416),
-    LatLng(57.699174, 11.899535),
-    LatLng(57.69926, 11.899745),
-    LatLng(57.699302, 11.899869),
-    LatLng(57.699337, 11.899995),
-    LatLng(57.699359, 11.900083),
-    LatLng(57.699452, 11.900467),
-    LatLng(57.699567, 11.900957),
-    LatLng(57.699626, 11.901217),
-    LatLng(57.699697, 11.90156),
-    LatLng(57.699732, 11.901741),
-    LatLng(57.699755, 11.901844),
+    // Checkpoint 3 -> Checkpoint 4 (longer segment)
+    LatLng(57.6986, 11.9040),
+    LatLng(57.6985, 11.9055),
+    LatLng(57.6986, 11.9070),
+    LatLng(57.6988, 11.9085),
+    LatLng(57.6992, 11.9100),
+    LatLng(57.6995, 11.9115),
+    LatLng(57.6998, 11.9130),
     
-    // E: End (Intersection 5)
-    LatLng(57.699769, 11.901906),
-
-    // Final Destination Extension
-    LatLng(57.7005, 11.9050), 
-    LatLng(57.7010, 11.9080),
-    LatLng(57.701999, 11.911721), // Target
+    // === CHECKPOINT 4 ===
+    LatLng(57.7000, 11.9145),
+    
+    // Checkpoint 4 -> Checkpoint 5 (final stretch)
+    LatLng(57.7002, 11.9160),
+    LatLng(57.7005, 11.9180),
+    LatLng(57.7008, 11.9200),
+    LatLng(57.7010, 11.9220),
+    LatLng(57.7012, 11.9240),
+    LatLng(57.7014, 11.9260),
+    
+    // === CHECKPOINT 5 (Destination) ===
+    LatLng(57.7015, 11.9280),
+    
+    // Continue past destination
+    LatLng(57.7018, 11.9300),
+    LatLng(57.7020, 11.9320),
   ];
 
-  // Original intersection points for marking
+  // Widely spaced checkpoint (intersection) positions
   static const List<LatLng> _intersections = [
-    LatLng(57.69841, 11.89636),
-    LatLng(57.69991, 11.89583),
-    LatLng(57.699788, 11.897004), // New C (Corrected)
-    LatLng(57.69909, 11.89868),
-    LatLng(57.699750, 11.901921),
+    LatLng(57.69841, 11.89636), // Checkpoint 1
+    LatLng(57.69992, 11.89583), // Checkpoint 2
+    LatLng(57.6988, 11.9025),    // Checkpoint 3 (further out)
+    LatLng(57.7000, 11.9145),    // Checkpoint 4 (further out)
+    LatLng(57.7015, 11.9280),    // Checkpoint 5 (destination)
   ];
 
   late final List<double> _cumDist;
-  late final double _totalDist; // Fixed: Restored this variable
+  late final double _totalDist;
   
-  // Stop logic
+  // Timing configuration
   final List<Map<String, dynamic>> _stops = [];
-  static const double _driveDuration = 45.0; // Slower animation
-  static const double _stopDuration = 2.0;
+  static const double _driveDuration = 90.0; // 90 seconds total (~15-18 sec per segment)
+  static const double _stopDuration = 3.0;   // 3 second pause at each checkpoint
 
   @override
   void initState() {
@@ -285,26 +264,26 @@ class _MapCardState extends State<MapCard> with SingleTickerProviderStateMixin {
     _cumDist = _buildCumulativeDistances();
     _totalDist = _cumDist.last;
 
-    // Define stops: At New C and D
-    // Find index for C
-    final indexC = _roadPath.indexWhere((p) => 
-        (p.latitude - 57.699788).abs() < 0.00001
+    // Define stops at checkpoints 3 and 4 (brief pauses during navigation)
+    // Find index for checkpoint 3
+    final indexC3 = _roadPath.indexWhere((p) => 
+        (p.latitude - 57.6988).abs() < 0.0001 && (p.longitude - 11.9025).abs() < 0.0001
     );
-    // Find index for D
-    final indexD = _roadPath.indexWhere((p) => 
-        (p.latitude - 57.69909).abs() < 0.00001
+    // Find index for checkpoint 4
+    final indexC4 = _roadPath.indexWhere((p) => 
+        (p.latitude - 57.7000).abs() < 0.0001 && (p.longitude - 11.9145).abs() < 0.0001
     );
 
     _stops.clear();
-    if (indexC != -1) {
+    if (indexC3 != -1) {
       _stops.add({
-        'dist': _cumDist[indexC],
+        'dist': _cumDist[indexC3],
         'duration': _stopDuration,
       });
     }
-    if (indexD != -1) {
+    if (indexC4 != -1) {
       _stops.add({
-        'dist': _cumDist[indexD],
+        'dist': _cumDist[indexC4],
         'duration': _stopDuration,
       });
     }
@@ -392,9 +371,9 @@ class _MapCardState extends State<MapCard> with SingleTickerProviderStateMixin {
               children: [
                 FlutterMap(
                   options: MapOptions(
-                    // Adjust center to fit new point
-                    initialCenter: LatLng(57.700, 11.905),
-                    initialZoom: 14.5,
+                    // Centered on route with extended path
+                    initialCenter: LatLng(57.698, 11.910),
+                    initialZoom: 13.5, // Zoomed out to fit wider area
                     interactionOptions: const InteractionOptions(
                       flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
                     ),
@@ -500,6 +479,20 @@ class _MapCardState extends State<MapCard> with SingleTickerProviderStateMixin {
                         final ahead = _positionAt(lookAheadT.clamp(0.0, 1.0));
                         final heading = _headingAt(carPos, ahead);
 
+                        // Update navigation provider with car position (scheduled to avoid setState during build)
+                        if (_controller.isAnimating) {
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            if (mounted) {
+                              final navProvider = Provider.of<NavigationProvider>(context, listen: false);
+                              navProvider.updateCarPosition(carPos);
+                            }
+                          });
+                        }
+                        
+                        // Get current checkpoint for display (read-only, no setState)
+                        final navProvider = Provider.of<NavigationProvider>(context, listen: false);
+
+
                         return Stack(
                           children: [
                             // 1. Dynamic Route (Active Path)
@@ -512,13 +505,48 @@ class _MapCardState extends State<MapCard> with SingleTickerProviderStateMixin {
                                 ),
                               ],
                             ),
-                            // 2. Car Marker (Smaller)
+                            // 2. Checkpoint Markers
                             MarkerLayer(
                               markers: [
+                                // Checkpoint markers (numbered 1-5)
+                                ...List.generate(_intersections.length, (index) {
+                                  final checkpoint = _intersections[index];
+                                  final isNext = index == navProvider.currentCheckpoint - 1;
+                                  return Marker(
+                                    point: checkpoint,
+                                    width: 32,
+                                    height: 32,
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        color: isNext ? Colors.orange : Colors.green,
+                                        shape: BoxShape.circle,
+                                        border: Border.all(color: Colors.white, width: 2),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: (isNext ? Colors.orange : Colors.green).withOpacity(0.4),
+                                            blurRadius: 6,
+                                            spreadRadius: 1,
+                                          ),
+                                        ],
+                                      ),
+                                      child: Center(
+                                        child: Text(
+                                          '${index + 1}',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                }),
+                                // Car Marker
                                 Marker(
                                   point: carPos,
-                                  width: 28,  // Reduced
-                                  height: 28, // Reduced
+                                  width: 28,
+                                  height: 28,
                                   child: Transform.rotate(
                                     angle: heading,
                                     child: Container(
@@ -537,7 +565,7 @@ class _MapCardState extends State<MapCard> with SingleTickerProviderStateMixin {
                                       child: const Icon(
                                         Icons.navigation_rounded,
                                         color: Colors.white,
-                                        size: 18, // Reduced
+                                        size: 18,
                                       ),
                                     ),
                                   ),
@@ -569,42 +597,52 @@ class _MapCardState extends State<MapCard> with SingleTickerProviderStateMixin {
                     ),
                   ],
                 ),
-                // Play/Replay Button
+                // Play/Replay Button - connected to NavigationProvider
                 Positioned(
                   bottom: 12,
                   right: 12,
-                  child: FloatingActionButton.extended(
-                    heroTag: 'map_play_button',
-                    onPressed: () {
-                      if (_controller.isAnimating) {
-                        _controller.stop();
-                      } else {
-                        // Restart if completed, otherwise continue
-                        if (_controller.value == 1.0) {
-                          _controller.forward(from: 0);
-                        } else {
-                          _controller.forward();
-                        }
-                      }
+                  child: Consumer<NavigationProvider>(
+                    builder: (context, navProvider, _) {
+                      return FloatingActionButton.extended(
+                        heroTag: 'map_play_button',
+                        onPressed: () {
+                          if (_controller.isAnimating) {
+                            _controller.stop();
+                            navProvider.pauseNavigation();
+                          } else {
+                            if (_controller.value == 1.0) {
+                              _controller.forward(from: 0);
+                              navProvider.resetNavigation();
+                              navProvider.startNavigation();
+                            } else if (_controller.value == 0.0) {
+                              _controller.forward();
+                              navProvider.startNavigation();
+                            } else {
+                              _controller.forward();
+                              navProvider.resumeNavigation();
+                            }
+                          }
+                        },
+                        backgroundColor: Colors.white,
+                        label: AnimatedBuilder(
+                          animation: _controller,
+                          builder: (context, _) {
+                            if (_controller.isAnimating) return const Text('Pause', style: TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.w600));
+                            if (_controller.value == 1.0) return const Text('Replay', style: TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.w600));
+                            return const Text('Start', style: TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.w600));
+                          },
+                        ),
+                        icon: AnimatedBuilder(
+                          animation: _controller,
+                          builder: (context, _) => Icon(
+                            _controller.isAnimating
+                                ? Icons.pause_rounded
+                                : (_controller.value == 1.0 ? Icons.replay_rounded : Icons.play_arrow_rounded),
+                            color: AppTheme.accentGreen,
+                          ),
+                        ),
+                      );
                     },
-                    backgroundColor: Colors.white,
-                    label: AnimatedBuilder(
-                      animation: _controller,
-                      builder: (context, _) {
-                        if (_controller.isAnimating) return const Text('Pause', style: TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.w600));
-                        if (_controller.value == 1.0) return const Text('Replay', style: TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.w600));
-                        return const Text('Start', style: TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.w600));
-                      },
-                    ),
-                    icon: AnimatedBuilder(
-                      animation: _controller,
-                      builder: (context, _) => Icon(
-                        _controller.isAnimating
-                            ? Icons.pause_rounded
-                            : (_controller.value == 1.0 ? Icons.replay_rounded : Icons.play_arrow_rounded),
-                        color: AppTheme.accentGreen,
-                      ),
-                    ),
                   ),
                 ),
                 // Label

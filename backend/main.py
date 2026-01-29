@@ -1,12 +1,14 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
+from sse_starlette.sse import EventSourceResponse
 import httpx
 import websockets
 import asyncio
 import json
 import os
 from simulation import TrafficSimulator
+from slm_service import generate_narration
 
 app = FastAPI()
 
@@ -40,9 +42,70 @@ async def get():
 async def get_visual():
     return FileResponse(os.path.join(os.path.dirname(__file__), "visul.html"))
 
-# Keep the original proxy endpoint if strictly needed, but shifting focus to simulation
-# as per request "i want to have 5 different endpoints which simulates different intersection"
-# We will expose the simulation endpoints.
+
+# ============= NARRATION SSE ENDPOINT =============
+
+async def narration_generator(intersection_id: int):
+    """
+    Generator that buffers 10 seconds of traffic data,
+    sends to SLM for narration, and yields the result.
+    Repeats every 10 seconds.
+    """
+    if intersection_id not in simulators:
+        yield {"event": "error", "data": json.dumps({"error": "Intersection not found"})}
+        return
+    
+    simulator = simulators[intersection_id]
+    buffer_duration = 10  # seconds (changed from 20)
+    sample_rate = 10  # Hz (matches simulator update rate)
+    samples_needed = buffer_duration * sample_rate
+    
+    while True:
+        # Collect traffic data for 10 seconds
+        traffic_buffer = []
+        for _ in range(samples_needed):
+            state = simulator.get_state()
+            traffic_buffer.append(state)
+            await asyncio.sleep(1.0 / sample_rate)
+        
+        # Generate narration using SLM
+        try:
+            narration = generate_narration(traffic_buffer, intersection_id=intersection_id)
+            yield {
+                "event": "narration",
+                "data": json.dumps({
+                    "text": narration,
+                    "intersection_id": intersection_id,
+                    "timestamp": traffic_buffer[-1]["timestamp"] if traffic_buffer else 0
+                })
+            }
+        except Exception as e:
+            print(f"Narration generation error: {e}")
+            yield {
+                "event": "narration",
+                "data": json.dumps({
+                    "text": "Traffic update unavailable.",
+                    "intersection_id": intersection_id,
+                    "error": str(e)
+                })
+            }
+
+
+@app.get("/narration/{intersection_id}")
+async def narration_stream(intersection_id: int):
+    """
+    SSE endpoint that streams traffic narrations every 20 seconds.
+    
+    Args:
+        intersection_id: 1-5 for different intersections
+    
+    Returns:
+        Server-Sent Events stream with narration text
+    """
+    return EventSourceResponse(narration_generator(intersection_id))
+
+
+# ============= WEBSOCKET ENDPOINTS =============
 
 @app.websocket("/ws/traffic")
 async def websocket_traffic_default(websocket: WebSocket):
@@ -74,3 +137,4 @@ async def websocket_traffic_endpoint(websocket: WebSocket, intersection_id: int)
             await websocket.close()
         except:
             pass
+

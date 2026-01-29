@@ -57,6 +57,10 @@ dependencies:
 
   # Google Fonts for Inter
   google_fonts: ^6.2.1
+  speech_to_text: ^7.3.0
+  
+  # HTTP for SSE connection to backend
+  http: ^1.2.0
 
   # Local storage for persistence
   shared_preferences: ^2.2.2
@@ -71,6 +75,8 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^5.0.0
+  build_runner: ^2.10.5
+  json_serializable: ^6.11.4
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

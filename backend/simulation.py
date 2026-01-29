@@ -21,8 +21,11 @@ class TrafficSimulator:
             
         self.object_types = ["car", "taxi", "bus", "bicycle", "police_car", "ambulance", "motorbike"]
         
-        # Traffic light state
-        self.signal_state = "NS_GREEN"
+        # Traffic light state - intersection 1 only has E-W, so always EW_GREEN
+        if self.intersection_id == 1:
+            self.signal_state = "EW_GREEN"
+        else:
+            self.signal_state = "NS_GREEN"
         self.last_signal_change = time.time()
         self.signal_duration = 10.0  # seconds
         
@@ -93,9 +96,13 @@ class TrafficSimulator:
     def update(self):
         current_time = time.time()
         
-        # Update signal
+        # Update signal - only toggle if this intersection has N-S lanes
         if current_time - self.last_signal_change > self.signal_duration:
-            self.signal_state = "EW_GREEN" if self.signal_state == "NS_GREEN" else "NS_GREEN"
+            # Intersection 1 only has E-W lanes, always keep EW_GREEN
+            if self.intersection_id == 1:
+                self.signal_state = "EW_GREEN"
+            else:
+                self.signal_state = "EW_GREEN" if self.signal_state == "NS_GREEN" else "NS_GREEN"
             self.last_signal_change = current_time
             
         # Spawn new objects occasionally

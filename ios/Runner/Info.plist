@@ -49,5 +49,9 @@
 	<string>TrafficVision AI needs your location to show nearby traffic conditions and provide relevant updates.</string>
 	<key>NSLocationAlwaysUsageDescription</key>
 	<string>TrafficVision AI needs your location to provide real-time traffic alerts even when the app is in the background.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>CycleEffect uses speech recognition to allow you to ask questions about traffic conditions using your voice.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>CycleEffect needs microphone access to listen for voice commands and questions about traffic.</string>
 </dict>
 </plist>

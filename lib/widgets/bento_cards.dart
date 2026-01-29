@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_provider.dart';
+import '../providers/navigation_provider.dart';
 import '../theme/app_theme.dart';
 
 /// Eyebrow text style used across bento cards.
@@ -24,51 +25,104 @@ class _EyebrowText extends StatelessWidget {
   }
 }
 
-/// Upcoming Intersections card showing real traffic data.
+/// Upcoming Intersections card showing remaining checkpoints based on navigation.
 class UpcomingIntersectionsCard extends StatelessWidget {
   const UpcomingIntersectionsCard({super.key});
+  
+  // Checkpoint names
+  static const List<String> checkpointNames = [
+    'Junction A (Main St)',
+    'Junction B (Park Ave)',
+    'Junction C (River Rd)',
+    'Junction D (Oak Blvd)',
+    'Destination',
+  ];
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<AppProvider>(
-      builder: (context, provider, child) {
-        final updates = provider.trafficUpdates.take(5).toList();
+    return Consumer<NavigationProvider>(
+      builder: (context, navProvider, child) {
+        // Get remaining checkpoints (current and future, not passed)
+        final currentCheckpoint = navProvider.currentCheckpoint; // 1-based
+        final remainingCheckpoints = <Map<String, dynamic>>[];
+        
+        for (int i = currentCheckpoint - 1; i < checkpointNames.length; i++) {
+          remainingCheckpoints.add({
+            'index': i + 1,
+            'name': checkpointNames[i],
+            'isCurrent': i == currentCheckpoint - 1,
+          });
+        }
 
         return GradientBorderCard(
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const _EyebrowText('Upcoming Intersections'),
+              Row(
+                children: [
+                  const _EyebrowText('Upcoming Intersections'),
+                  const Spacer(),
+                  if (navProvider.isNavigating)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.greenAccent.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        'NAVIGATING',
+                        style: GoogleFonts.inter(
+                          color: Colors.greenAccent,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
               const SizedBox(height: 12),
               Expanded(
-                child: updates.isEmpty
+                child: remainingCheckpoints.isEmpty
                     ? Center(
-                        child: Text(
-                          'No intersections nearby',
-                          style: GoogleFonts.inter(
-                            color: AppTheme.textPrimary.withOpacity(0.5),
-                            fontSize: 13,
-                          ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.check_circle_outline,
+                              color: Colors.greenAccent,
+                              size: 32,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'All checkpoints passed!',
+                              style: GoogleFonts.inter(
+                                color: AppTheme.textPrimary.withOpacity(0.5),
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
                         ),
                       )
                     : ListView.separated(
                         padding: EdgeInsets.zero,
-                        itemCount: updates.length,
+                        itemCount: remainingCheckpoints.length,
                         separatorBuilder: (_, __) => const SizedBox(height: 8),
                         itemBuilder: (context, index) {
-                          final update = updates[index];
+                          final checkpoint = remainingCheckpoints[index];
                           return _IntersectionItem(
-                            name: update.location,
-                            distance: '${((index + 1) * 0.3).toStringAsFixed(1)} km',
-                            severity: update.severity.name,
+                            name: checkpoint['name'] as String,
+                            checkpointNumber: checkpoint['index'] as int,
+                            isCurrent: checkpoint['isCurrent'] as bool,
                           );
                         },
                       ),
               ),
               const SizedBox(height: 8),
               Text(
-                'Tap an intersection for more details',
+                navProvider.isNavigating 
+                    ? 'Heading to checkpoint ${navProvider.currentCheckpoint}'
+                    : 'Press play on map to start navigation',
                 style: GoogleFonts.inter(
                   color: AppTheme.textPrimary.withOpacity(0.3),
                   fontSize: 10,
@@ -84,28 +138,20 @@ class UpcomingIntersectionsCard extends StatelessWidget {
 
 class _IntersectionItem extends StatelessWidget {
   final String name;
-  final String distance;
-  final String severity;
+  final int checkpointNumber;
+  final bool isCurrent;
 
   const _IntersectionItem({
     required this.name,
-    required this.distance,
-    required this.severity,
+    required this.checkpointNumber,
+    required this.isCurrent,
   });
 
   @override
   Widget build(BuildContext context) {
-    Color statusColor;
-    switch (severity) {
-      case 'high':
-        statusColor = AppTheme.trafficHigh;
-        break;
-      case 'medium':
-        statusColor = AppTheme.trafficMedium;
-        break;
-      default:
-        statusColor = AppTheme.trafficLow;
-    }
+    // Current target gets a highlight color, others are grayed out
+    final statusColor = isCurrent ? AppTheme.accentGreen : AppTheme.textPrimary.withOpacity(0.3);
+    final textColor = isCurrent ? AppTheme.textPrimary : AppTheme.textPrimary.withOpacity(0.6);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -113,18 +159,35 @@ class _IntersectionItem extends StatelessWidget {
         color: AppTheme.cardBackground,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
-          color: AppTheme.borderSides,
+          color: isCurrent ? AppTheme.accentGreen.withOpacity(0.5) : AppTheme.borderSides,
           width: 1,
         ),
+        boxShadow: isCurrent ? [
+          BoxShadow(
+            color: AppTheme.accentGreen.withOpacity(0.1),
+            blurRadius: 4,
+            spreadRadius: 0,
+          )
+        ] : [],
       ),
       child: Row(
         children: [
           Container(
-            width: 8,
-            height: 8,
+            width: 20,
+            height: 20,
             decoration: BoxDecoration(
               color: statusColor,
               shape: BoxShape.circle,
+            ),
+            child: Center(
+              child: Text(
+                '$checkpointNumber',
+                style: GoogleFonts.inter(
+                  color: isCurrent ? Colors.black : Colors.white,
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
           ),
           const SizedBox(width: 10),
@@ -132,26 +195,36 @@ class _IntersectionItem extends StatelessWidget {
             child: Text(
               name,
               style: GoogleFonts.inter(
-                color: AppTheme.textPrimary,
+                color: textColor,
                 fontSize: 13,
-                fontWeight: FontWeight.w500,
+                fontWeight: isCurrent ? FontWeight.w600 : FontWeight.w400,
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          Text(
-            distance,
-            style: GoogleFonts.inter(
-              color: AppTheme.textPrimary.withOpacity(0.5),
-              fontSize: 12,
+          if (isCurrent)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: AppTheme.accentGreen.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                'NEXT',
+                style: GoogleFonts.inter(
+                  color: AppTheme.accentGreen,
+                  fontSize: 9,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
-          ),
         ],
       ),
     );
   }
 }
+
 
 /// Alert card with warning message.
 class AlertCard extends StatelessWidget {
@@ -200,106 +273,3 @@ class AlertCard extends StatelessWidget {
 }
 
 /// Speed and Distance card with inline displays.
-class SpeedDistanceCard extends StatelessWidget {
-  const SpeedDistanceCard({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Consumer<AppProvider>(
-      builder: (context, provider, child) {
-        // Get real speed from GPS if available
-        final speedKmh = provider.userLocation?.speedKmh?.round() ?? 0;
-        final speedDisplay = speedKmh > 0 ? '$speedKmh' : '0';
-
-        return GradientBorderCard(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              // Current Speed section
-              Expanded(
-                child: Center(
-                  child: _InlineDisplay(
-                    value: speedDisplay,
-                    unit: 'KM/H',
-                    label: 'Current Speed',
-                  ),
-                ),
-              ),
-              // Divider
-              Container(
-                width: 0,
-                height: 80,
-                color: AppTheme.textPrimary.withOpacity(0.1),
-              ),
-              // Until Next Camera section
-              Expanded(
-                child: Center (
-                  child: _InlineDisplay(
-                    value: '4',
-                    unit: 'KM',
-                    label: 'Until Camera',
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _InlineDisplay extends StatelessWidget {
-  final String value;
-  final String unit;
-  final String label;
-
-  const _InlineDisplay({
-    required this.value,
-    required this.unit,
-    required this.label,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.baseline,
-          textBaseline: TextBaseline.alphabetic,
-          children: [
-            Text(
-              value,
-              style: GoogleFonts.inter(
-                color: AppTheme.textPrimary,
-                fontSize: 46,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              unit,
-              style: GoogleFonts.inter(
-                color: AppTheme.textPrimary.withOpacity(0.5),
-                fontSize: 36,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-        Text(
-          label.toUpperCase(),
-          style: GoogleFonts.inter(
-            color: AppTheme.textPrimary.withOpacity(0.5),
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0.5,
-          ),
-        ),
-      ],
-    );
-  }
-}

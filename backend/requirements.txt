@@ -2,3 +2,5 @@ fastapi
 uvicorn
 httpx
 websockets
+llama-cpp-python
+sse-starlette
