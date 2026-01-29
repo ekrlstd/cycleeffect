@@ -29,6 +29,7 @@ class AppProvider extends ChangeNotifier {
   TtsState _ttsState = TtsState.stopped;
   bool _isInitialized = false;
   String? _error;
+  String _username = 'John';
 
   // Getters
   UserLocation? get userLocation => _userLocation;
@@ -39,6 +40,13 @@ class AppProvider extends ChangeNotifier {
   String? get error => _error;
   bool get isConnected => _connectionState == ConnectionState.connected;
   bool get isSpeaking => _ttsState == TtsState.speaking;
+  String get username => _username;
+
+  /// Sets the user's name.
+  void setUsername(String name) {
+    _username = name;
+    notifyListeners();
+  }
 
   /// Initializes all services and starts tracking.
   Future<void> initialize() async {

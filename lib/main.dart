@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import 'providers/app_provider.dart';
 import 'theme/app_theme.dart';
+import 'pages/onboarding_page.dart';
 import 'widgets/greeting_header.dart';
 import 'widgets/map_card.dart';
 import 'widgets/bento_cards.dart';
@@ -43,7 +44,11 @@ class HeadsupApp extends StatelessWidget {
         title: 'Headsup',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.darkTheme,
-        home: const HomePage(),
+        initialRoute: '/',
+        routes: {
+          '/': (context) => const OnboardingPage(),
+          '/home': (context) => const HomePage(),
+        },
       ),
     );
   }
@@ -88,7 +93,7 @@ class _HomePageState extends State<HomePage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Greeting header
-                const GreetingHeader(username: 'John'),
+                GreetingHeader(username: provider.username),
 
                 // Map card (~40% of viewport)
                 const MapCard(),
