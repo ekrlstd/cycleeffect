@@ -60,10 +60,8 @@ Headsup: "Three vehicles approaching from your left at the roundabout. Yield bef
 ## 📱 App Screenshots
 
 <p align="center">
-  <img src="docs/screenshots/home.png" alt="Home Screen" width="250"/>
-  &nbsp;&nbsp;
-  <img src="docs/screenshots/map.png" alt="Map View" width="250"/>
-  &nbsp;&nbsp;
+  <img width="314" height="753" alt="image2" src="https://github.com/user-attachments/assets/7dd0e4ba-f3d0-41ff-b662-c48f7a6781aa" />
+  <img width="314" height="753" alt="image" src="https://github.com/user-attachments/assets/a51e9820-929c-410b-be8e-1d7d4f39a174" />
 </p>
 
 <p align="center">
@@ -150,7 +148,7 @@ Built with ❤️ by a team passionate about software, AI, and building things t
 Aakrish Lama
 
 <p align="center">
-  <strong>Aakrish Lama • Abdirashid Sammantar • Ebbe Karlstad • Syuash Mullick</strong>
+  <strong>Aakrish Lama • Abdirashiid Sammatar • Ebbe Karlstad • Syuash Mullick</strong>
 </p>
 
 ## 📄 License
