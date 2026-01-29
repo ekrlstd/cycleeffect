@@ -155,7 +155,7 @@ Aakrish Lama
 
 ## 📄 License
 
-GPLv2 License — See [LICENSE](LICENSE) for details.
+GNU General Public License v3.0 — See [LICENSE](LICENSE) for details.
 
 <p align="center">
   <strong>Headsup</strong> — Because every second counts on the road.
