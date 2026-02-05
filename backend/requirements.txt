@@ -1,6 +1,5 @@
 fastapi
 uvicorn
-httpx
-websockets
-llama-cpp-python
+aiohttp
 sse-starlette
+pydantic

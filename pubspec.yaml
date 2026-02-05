@@ -43,14 +43,16 @@ dependencies:
   geolocator: ^13.0.2
   permission_handler: ^11.3.1
 
-  # WebSocket for real-time traffic data
-  web_socket_channel: ^3.0.1
-
   # State management
   provider: ^6.1.2
 
   # Text-to-speech for AI narration
+  # sherpa-onnx: high-quality on-device neural TTS (downloads ~60MB model on first launch)
+  # flutter_tts: fallback while model downloads
+  sherpa_onnx: ^1.12.23
   flutter_tts: ^4.2.0
+  audioplayers: ^6.1.0
+  path_provider: ^2.1.2
 
   # JSON serialization
   json_annotation: ^4.9.0

@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'providers/app_provider.dart';
 import 'providers/narration_provider.dart';
 import 'providers/navigation_provider.dart';
+import 'providers/route_provider.dart';
 import 'theme/app_theme.dart';
 import 'pages/onboarding_page.dart';
 import 'widgets/greeting_header.dart';
@@ -15,13 +16,11 @@ import 'widgets/voice_pill.dart';
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Set preferred orientations
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
 
-  // Set system UI overlay style for dark theme
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
@@ -34,20 +33,14 @@ void main() {
   runApp(const HeadsupApp());
 }
 
-/// Main application widget.
 class HeadsupApp extends StatelessWidget {
   const HeadsupApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // Create providers and wire up callbacks
     final narrationProvider = NarrationProvider();
     final navigationProvider = NavigationProvider();
-    
-    // Wire NavigationProvider callbacks to NarrationProvider
-    navigationProvider.onApproachingCheckpoint = (intersectionId) {
-      narrationProvider.onApproachingCheckpoint(intersectionId);
-    };
+
     navigationProvider.onNavigationStateChanged = (isNavigating) {
       if (isNavigating) {
         narrationProvider.onNavigationStarted();
@@ -55,15 +48,16 @@ class HeadsupApp extends StatelessWidget {
         narrationProvider.onNavigationStopped();
       }
     };
-    
+
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AppProvider()),
         ChangeNotifierProvider.value(value: narrationProvider),
         ChangeNotifierProvider.value(value: navigationProvider),
+        ChangeNotifierProvider(create: (_) => RouteProvider()),
       ],
       child: MaterialApp(
-        title: 'Headsup',
+        title: 'PreVue',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.darkTheme,
         initialRoute: '/',
@@ -77,7 +71,6 @@ class HeadsupApp extends StatelessWidget {
   }
 }
 
-/// Splash page that checks for existing username and routes accordingly.
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
 
@@ -110,15 +103,12 @@ class _SplashPageState extends State<SplashPage> {
     return const Scaffold(
       backgroundColor: Color(0xFF060606),
       body: Center(
-        child: CircularProgressIndicator(
-          color: Color(0xFFFC9444),
-        ),
+        child: CircularProgressIndicator(color: Color(0xFFFC9444)),
       ),
     );
   }
 }
 
-/// Main home page with new layout.
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -154,42 +144,31 @@ class _HomePageState extends State<HomePage> {
           child: Consumer<AppProvider>(
             builder: (context, provider, child) {
               return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Greeting header
-                GreetingHeader(username: provider.username),
-
-                // Map card (~40% of viewport)
-                const MapCard(),
-
-                const SizedBox(height: 16),
-
-                // Bento Grid
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Column(
-                      children: [
-                        // Row 1: Upcoming Intersections (full width)
-                        const Expanded(
-                          flex: 1,
-                          child: UpcomingIntersectionsCard(),
-                        ),
-                      ],
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  GreetingHeader(username: provider.username),
+                  const MapCard(),
+                  const SizedBox(height: 16),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Column(
+                        children: [
+                          const Expanded(
+                            flex: 1,
+                            child: UpcomingIntersectionsCard(),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-
-                const SizedBox(height: 16),
-
-                // Voice Interface Pill
-                const VoicePill(),
-
-                const SizedBox(height: 20),
-              ],
-            );
-          },
-        ),
+                  const SizedBox(height: 16),
+                  const VoicePill(),
+                  const SizedBox(height: 20),
+                ],
+              );
+            },
+          ),
         ),
       ),
     );

@@ -1,5 +1,8 @@
 models/
 
+# TTS models (large binary files)
+assets/tts-models/
+
 # Miscellaneous
 *.class
 *.log

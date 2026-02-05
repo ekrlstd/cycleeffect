@@ -1,110 +1,138 @@
 import 'dart:async';
-import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_tts/flutter_tts.dart';
 
-/// Service for text-to-speech functionality.
+// For non-web platforms
+import 'tts_service_native.dart' if (dart.library.html) 'tts_service_web_stub.dart';
+
+/// TTS service that works on all platforms.
 ///
-/// Handles AI narration of traffic alerts using the device's TTS engine.
+/// On mobile/desktop: Uses sherpa-onnx neural TTS with flutter_tts fallback.
+/// On web: Uses flutter_tts only.
 class TtsService {
-  final FlutterTts _flutterTts = FlutterTts();
   final StreamController<TtsState> _stateController =
       StreamController<TtsState>.broadcast();
 
-  /// Stream of TTS state changes.
   Stream<TtsState> get stateStream => _stateController.stream;
 
-  /// Current TTS state.
   TtsState _currentState = TtsState.stopped;
   TtsState get currentState => _currentState;
 
-  /// Queue of messages to speak.
   final List<String> _messageQueue = [];
 
-  /// Whether TTS is initialized successfully.
   bool _isInitialized = false;
   bool get isAvailable => _isInitialized;
 
-  /// Initializes the TTS engine with default settings.
-  Future<void> initialize() async {
+  bool _isNeuralReady = false;
+  bool get isNeuralReady => _isNeuralReady;
+
+  bool _isDownloading = false;
+  bool get isDownloading => _isDownloading;
+
+  double _downloadProgress = 0.0;
+  double get downloadProgress => _downloadProgress;
+
+  // Platform-specific implementation
+  NativeTtsEngine? _nativeEngine;
+  FlutterTts? _fallbackTts;
+
+  double _speed = 1.0;
+
+  /// Initializes TTS with fallback support.
+  Future<void> initialize({bool autoDownload = true}) async {
     if (_isInitialized) return;
 
     try {
-      // On Android, try to find an available engine
-      if (Platform.isAndroid) {
-        final engines = await _flutterTts.getEngines;
-        if (engines == null || engines.isEmpty) {
-          print('TTS: No engines available on this device');
-          return;
-        }
-        print('TTS: Available engines: $engines');
-
-        // Try Google TTS first, otherwise use the first available
-        if (engines.contains('com.google.android.tts')) {
-          await _flutterTts.setEngine('com.google.android.tts');
-        } else {
-          // Use default engine (first available)
-          await _flutterTts.setEngine(engines.first as String);
-        }
-      }
-
-      // Set language - try common ones
-      final languages = await _flutterTts.getLanguages;
-      print('TTS: Available languages: $languages');
-
-      if (languages != null) {
-        if (languages.contains('en-US')) {
-          await _flutterTts.setLanguage('en-US');
-        } else if (languages.contains('en-GB')) {
-          await _flutterTts.setLanguage('en-GB');
-        } else if (languages.contains('en')) {
-          await _flutterTts.setLanguage('en');
-        }
-      }
-
-      await _flutterTts.setSpeechRate(0.5);
-      await _flutterTts.setVolume(1.0);
-      await _flutterTts.setPitch(1.0);
-
-      // Set up callbacks
-      _flutterTts.setStartHandler(() {
-        _setState(TtsState.speaking);
-      });
-
-      _flutterTts.setCompletionHandler(() {
-        _setState(TtsState.stopped);
-        _processQueue();
-      });
-
-      _flutterTts.setCancelHandler(() {
-        _setState(TtsState.stopped);
-      });
-
-      _flutterTts.setErrorHandler((message) {
-        print('TTS Error: $message');
-        _setState(TtsState.stopped);
-        _processQueue();
-      });
-
+      // Initialize fallback TTS first (works on all platforms)
+      await _initFallbackTts();
       _isInitialized = true;
-      print('TTS: Initialized successfully');
+
+      // On non-web platforms, try to initialize neural TTS
+      if (!kIsWeb) {
+        _nativeEngine = NativeTtsEngine();
+        _isNeuralReady = await _nativeEngine!.isModelReady();
+
+        if (_isNeuralReady) {
+          await _nativeEngine!.initialize();
+          _nativeEngine!.onComplete = () {
+            _setState(TtsState.stopped);
+            _processQueue();
+          };
+        } else if (autoDownload) {
+          _downloadModelInBackground();
+        }
+      }
+
+      print('TTS: Initialized (neural: $_isNeuralReady, web: $kIsWeb)');
     } catch (e) {
       print('TTS initialization error: $e');
       _isInitialized = false;
     }
   }
 
+  Future<void> _initFallbackTts() async {
+    _fallbackTts = FlutterTts();
+
+    try {
+      await _fallbackTts!.setLanguage('en-US');
+      await _fallbackTts!.setSpeechRate(0.5);
+      await _fallbackTts!.setVolume(1.0);
+      await _fallbackTts!.setPitch(1.0);
+
+      _fallbackTts!.setCompletionHandler(() {
+        _setState(TtsState.stopped);
+        _processQueue();
+      });
+
+      print('TTS: Fallback TTS ready');
+    } catch (e) {
+      print('TTS: Fallback init error: $e');
+    }
+  }
+
+  void _downloadModelInBackground() {
+    if (_nativeEngine == null) return;
+
+    _isDownloading = true;
+    _nativeEngine!.downloadModel().listen(
+      (progress) {
+        _downloadProgress = progress;
+      },
+      onDone: () async {
+        _isDownloading = false;
+        _isNeuralReady = await _nativeEngine!.isModelReady();
+        if (_isNeuralReady) {
+          await _nativeEngine!.initialize();
+          _nativeEngine!.onComplete = () {
+            _setState(TtsState.stopped);
+            _processQueue();
+          };
+        }
+      },
+      onError: (e) {
+        print('TTS: Background download error: $e');
+        _isDownloading = false;
+      },
+    );
+  }
+
+  /// Downloads the neural model manually.
+  Stream<double> downloadModel() async* {
+    if (kIsWeb || _nativeEngine == null) {
+      yield 1.0;
+      return;
+    }
+    yield* _nativeEngine!.downloadModel();
+  }
+
   /// Speaks the given text.
-  ///
-  /// If [interrupt] is true, stops any current speech first.
-  /// Otherwise, adds to queue.
   Future<void> speak(String text, {bool interrupt = false}) async {
     if (!_isInitialized) {
       await initialize();
     }
 
-    // If still not initialized, TTS is unavailable
     if (!_isInitialized) {
-      print('TTS: Cannot speak - TTS not available');
+      print('TTS: Cannot speak - not initialized');
       return;
     }
 
@@ -120,16 +148,37 @@ class TtsService {
     }
   }
 
-  /// Internal speak method.
   Future<void> _speak(String text) async {
-    try {
-      await _flutterTts.speak(text);
-    } catch (e) {
-      print('TTS speak error: $e');
+    if (_isNeuralReady && _nativeEngine != null) {
+      await _speakNeural(text);
+    } else {
+      await _speakFallback(text);
     }
   }
 
-  /// Processes the message queue.
+  Future<void> _speakNeural(String text) async {
+    try {
+      _setState(TtsState.speaking);
+      await _nativeEngine!.speak(text, speed: _speed);
+    } catch (e) {
+      print('TTS neural error: $e');
+      await _speakFallback(text);
+    }
+  }
+
+  Future<void> _speakFallback(String text) async {
+    if (_fallbackTts == null) return;
+
+    try {
+      _setState(TtsState.speaking);
+      await _fallbackTts!.speak(text);
+    } catch (e) {
+      print('TTS fallback error: $e');
+      _setState(TtsState.stopped);
+      _processQueue();
+    }
+  }
+
   void _processQueue() {
     if (_messageQueue.isNotEmpty && _currentState == TtsState.stopped) {
       final nextMessage = _messageQueue.removeAt(0);
@@ -137,56 +186,59 @@ class TtsService {
     }
   }
 
-  /// Stops any current speech.
   Future<void> stop() async {
-    if (!_isInitialized) return;
     try {
-      await _flutterTts.stop();
+      await _nativeEngine?.stop();
+      await _fallbackTts?.stop();
     } catch (e) {
       print('TTS stop error: $e');
     }
     _setState(TtsState.stopped);
   }
 
-  /// Pauses current speech (if supported).
   Future<void> pause() async {
-    if (!_isInitialized) return;
     try {
-      await _flutterTts.pause();
+      await _nativeEngine?.pause();
+      await _fallbackTts?.pause();
       _setState(TtsState.paused);
     } catch (e) {
       print('TTS pause error: $e');
     }
   }
 
-  /// Sets the speech rate (0.0 to 1.0).
+  Future<void> resume() async {
+    try {
+      await _nativeEngine?.resume();
+      _setState(TtsState.speaking);
+    } catch (e) {
+      print('TTS resume error: $e');
+    }
+  }
+
   Future<void> setSpeechRate(double rate) async {
-    if (!_isInitialized) return;
-    await _flutterTts.setSpeechRate(rate.clamp(0.0, 1.0));
+    _speed = rate.clamp(0.5, 2.0);
+    await _fallbackTts?.setSpeechRate(rate.clamp(0.0, 1.0));
   }
 
-  /// Sets the volume (0.0 to 1.0).
   Future<void> setVolume(double volume) async {
-    if (!_isInitialized) return;
-    await _flutterTts.setVolume(volume.clamp(0.0, 1.0));
+    final vol = volume.clamp(0.0, 1.0);
+    await _nativeEngine?.setVolume(vol);
+    await _fallbackTts?.setVolume(vol);
   }
 
-  /// Updates the state and notifies listeners.
   void _setState(TtsState state) {
     _currentState = state;
     _stateController.add(state);
   }
 
-  /// Disposes of resources.
   void dispose() {
-    if (_isInitialized) {
-      _flutterTts.stop();
-    }
+    stop();
+    _nativeEngine?.dispose();
+    _fallbackTts?.stop();
     _stateController.close();
   }
 }
 
-/// TTS engine states.
 enum TtsState {
   stopped,
   speaking,

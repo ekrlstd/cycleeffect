@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:geolocator/geolocator.dart';
 import '../models/user_location.dart';
 
@@ -46,7 +47,21 @@ class LocationService {
   Future<UserLocation?> getCurrentLocation() async {
     try {
       final hasPermission = await requestPermissions();
-      if (!hasPermission) return null;
+      if (!hasPermission) {
+        if (kIsWeb) {
+          // On web, return default location (Gothenburg)
+          _currentLocation = UserLocation(
+            latitude: 57.7089,
+            longitude: 11.9746,
+            heading: 0,
+            speed: 0,
+            accuracy: 100,
+            timestamp: DateTime.now(),
+          );
+          return _currentLocation;
+        }
+        return null;
+      }
 
       final position = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
@@ -58,6 +73,18 @@ class LocationService {
       return _currentLocation;
     } catch (e) {
       print('Error getting current location: $e');
+      if (kIsWeb) {
+        // On web, return default location
+        _currentLocation = UserLocation(
+          latitude: 57.7089,
+          longitude: 11.9746,
+          heading: 0,
+          speed: 0,
+          accuracy: 100,
+          timestamp: DateTime.now(),
+        );
+        return _currentLocation;
+      }
       return null;
     }
   }
@@ -68,32 +95,75 @@ class LocationService {
   Future<void> startTracking({
     Duration interval = const Duration(seconds: 2),
   }) async {
-    final hasPermission = await requestPermissions();
-    if (!hasPermission) {
-      _locationController.addError('Location permission denied');
-      return;
-    }
+    try {
+      final hasPermission = await requestPermissions();
+      if (!hasPermission) {
+        if (kIsWeb) {
+          print('Location: Web geolocation denied - using default location');
+          // On web, provide a default location (Gothenburg) so the app still works
+          _currentLocation = UserLocation(
+            latitude: 57.7089,
+            longitude: 11.9746,
+            heading: 0,
+            speed: 0,
+            accuracy: 100,
+            timestamp: DateTime.now(),
+          );
+          _locationController.add(_currentLocation!);
+        } else {
+          _locationController.addError('Location permission denied');
+        }
+        return;
+      }
 
-    // Cancel any existing subscription
-    await stopTracking();
+      // Cancel any existing subscription
+      await stopTracking();
 
-    final locationSettings = LocationSettings(
-      accuracy: LocationAccuracy.high,
-      distanceFilter: 5, // Minimum distance (meters) before update
-    );
+      final locationSettings = LocationSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 5, // Minimum distance (meters) before update
+      );
 
-    _positionSubscription = Geolocator.getPositionStream(
-      locationSettings: locationSettings,
-    ).listen(
-      (Position position) {
-        _currentLocation = _positionToUserLocation(position);
+      _positionSubscription = Geolocator.getPositionStream(
+        locationSettings: locationSettings,
+      ).listen(
+        (Position position) {
+          _currentLocation = _positionToUserLocation(position);
+          _locationController.add(_currentLocation!);
+        },
+        onError: (error) {
+          print('Location stream error: $error');
+          if (kIsWeb) {
+            // On web, fall back to default location
+            _currentLocation = UserLocation(
+              latitude: 57.7089,
+              longitude: 11.9746,
+              heading: 0,
+              speed: 0,
+              accuracy: 100,
+              timestamp: DateTime.now(),
+            );
+            _locationController.add(_currentLocation!);
+          } else {
+            _locationController.addError(error);
+          }
+        },
+      );
+    } catch (e) {
+      print('Location tracking error: $e');
+      if (kIsWeb) {
+        // On web, fall back to default location
+        _currentLocation = UserLocation(
+          latitude: 57.7089,
+          longitude: 11.9746,
+          heading: 0,
+          speed: 0,
+          accuracy: 100,
+          timestamp: DateTime.now(),
+        );
         _locationController.add(_currentLocation!);
-      },
-      onError: (error) {
-        print('Location stream error: $error');
-        _locationController.addError(error);
-      },
-    );
+      }
+    }
   }
 
   /// Stops location tracking.

@@ -122,13 +122,36 @@ class _OnboardingPageState extends State<OnboardingPage>
                   // Title at ~1/3 down
                   SizedBox(height: screenHeight * 0.12),
 
+                  // Company Branding
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 24),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(30),
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.5),
+                        width: 1.5,
+                      ),
+                    ),
+                    child: Text(
+                      'PREVUE',
+                      style: GoogleFonts.inter(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 6.0,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 24),
                     child: RichText(
                       textAlign: TextAlign.center,
                       text: TextSpan(
                         style: GoogleFonts.inter(
-                          fontSize: 42,
+                          fontSize: 28,
                           fontWeight: FontWeight.bold,
                           color: AppTheme.textPrimary,
                           height: 1.15,
@@ -144,13 +167,13 @@ class _OnboardingPageState extends State<OnboardingPage>
                                 vertical: 2,
                               ),
                               decoration: BoxDecoration(
-                                color: const Color(0x060606).withValues(alpha: 0.5),
+                                color: const Color(0x060606).withOpacity(0.5),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(
                                 'safely',
                                 style: GoogleFonts.playfairDisplay(
-                                  fontSize: 42,
+                                  fontSize: 28,
                                   fontWeight: FontWeight.bold,
                                   color: AppTheme.textPrimary,
                                   height: 1.15,

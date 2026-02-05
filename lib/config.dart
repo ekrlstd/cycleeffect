@@ -1,26 +1,38 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
+
 /// App configuration settings.
-///
-/// Update these values based on your environment:
-/// - For Android emulator: use 10.0.2.2 (maps to host localhost)
-/// - For physical device: use your PC's local IP (e.g., 192.168.1.100)
-/// - For production: use your server's public URL
 class AppConfig {
   AppConfig._();
 
-  /// WebSocket URL for the traffic backend.
-  ///
-  /// To find your PC's IP on Linux/Mac: `ip addr` or `ifconfig`
-  /// To find your PC's IP on Windows: `ipconfig`
-  ///
-  /// Make sure your phone and PC are on the same WiFi network!
-  static const String backendHost = '10.30.2.184'; // Your PC's local IP on wlan0
-  static const int backendPort = 8000;
+  static const String _backendHostOverride = String.fromEnvironment(
+    'BACKEND_HOST',
+    defaultValue: '',
+  );
 
-  static String get webSocketUrl => 'ws://$backendHost:$backendPort/ws/traffic';
+  static const int backendPort = int.fromEnvironment(
+    'BACKEND_PORT',
+    defaultValue: 8000,
+  );
 
-  /// Whether to load mock data if backend connection fails.
-  static const bool useMockDataFallback = true;
+  static const String apiKey = String.fromEnvironment(
+    'API_KEY',
+    defaultValue: 'headsup-dev-key',
+  );
 
-  /// Delay before loading mock data (gives backend time to connect).
-  static const Duration mockDataDelay = Duration(seconds: 3);
+  /// Backend host - auto-detects based on platform:
+  /// - Web: localhost
+  /// - Android emulator: 10.0.2.2
+  /// - Override with --dart-define=BACKEND_HOST=<ip>
+  static String get backendHost {
+    if (_backendHostOverride.isNotEmpty) {
+      return _backendHostOverride;
+    }
+    if (kIsWeb) {
+      return 'localhost';
+    }
+    // Android emulator uses 10.0.2.2 to reach host machine
+    return '10.0.2.2';
+  }
+
+  static String get baseUrl => 'http://$backendHost:$backendPort';
 }
