@@ -24,18 +24,33 @@ class RouteService {
         if (originLat != null) 'origin_lat': originLat,
         if (originLon != null) 'origin_lon': originLon,
       };
+      print('RouteService: POST ${AppConfig.baseUrl}/api/route');
+      print('RouteService: body=$body');
       final resp = await _client.post(
         Uri.parse('${AppConfig.baseUrl}/api/route'),
         headers: _headers,
         body: jsonEncode(body),
       );
+      print('RouteService: status=${resp.statusCode}');
+      print('RouteService: response length=${resp.body.length}');
+
       if (resp.statusCode != 200) {
         print('RouteService: createRoute failed: ${resp.statusCode} ${resp.body}');
         return null;
       }
-      return RouteResult.fromJson(jsonDecode(resp.body));
-    } catch (e) {
+
+      // Debug: print raw JSON keys
+      final jsonData = jsonDecode(resp.body) as Map<String, dynamic>;
+      print('RouteService: JSON keys=${jsonData.keys.toList()}');
+      print('RouteService: traffic_sites type=${jsonData["traffic_sites"]?.runtimeType}');
+      print('RouteService: traffic_sites length=${(jsonData["traffic_sites"] as List?)?.length}');
+      print('RouteService: cameras type=${jsonData["cameras"]?.runtimeType}');
+      print('RouteService: cameras length=${(jsonData["cameras"] as List?)?.length}');
+
+      return RouteResult.fromJson(jsonData);
+    } catch (e, stack) {
       print('RouteService: createRoute error: $e');
+      print('RouteService: stack: $stack');
       return null;
     }
   }

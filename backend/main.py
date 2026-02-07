@@ -67,7 +67,7 @@ async def create_route(req: RouteRequest, x_api_key: str = Header(None)):
     """Create a route: geocode destination, compute route, fetch real traffic."""
     verify_api_key(x_api_key)
 
-    # Geocode destination
+    # Geocode destination (biased to Göteborg centrum by default)
     dest = await route_service.geocode(req.destination_name)
     if dest is None:
         raise HTTPException(status_code=404, detail=f"Could not find '{req.destination_name}'")
@@ -85,15 +85,34 @@ async def create_route(req: RouteRequest, x_api_key: str = Header(None)):
     geometry = primary["geometry"]  # [[lon, lat], ...]
     bbox = route_service.get_route_bbox(geometry)
 
+    # Get road info from route
+    road_refs = primary.get("road_refs", [])
+    road_names = primary.get("road_names", [])
+    print(f"Route uses: refs={road_refs}, {len(road_names)} named roads")
+
     # Fetch real traffic data
-    traffic_flow, situations, road_condition = await asyncio.gather(
+    traffic_flow, situations, road_condition, cameras = await asyncio.gather(
         tv.fetch_traffic_flow(bbox),
         tv.fetch_situations(bbox),
         tv.fetch_road_condition(bbox),
+        tv.fetch_cameras(bbox),
     )
 
-    # Filter traffic sites to those near the route
-    matched_flow = route_service.match_sites_to_route(traffic_flow, geometry)
+    # Smart matching: different strategy based on route type
+    # - Highway routes (has refs like E6, 40): use moderate radius, sensors are on the highway
+    # - Local routes (no refs): use smaller radius since sensors are on nearby highways
+    if road_refs:
+        # Route includes highways - sensors should be closer to route
+        radius = 1000.0
+        print(f"Highway route detected, using {radius}m radius")
+    else:
+        # Local streets only - sensors are on nearby major roads
+        radius = 800.0
+        print(f"Local route detected, using {radius}m radius")
+
+    matched_flow = route_service.match_sites_to_route(traffic_flow, geometry, radius_m=radius)
+    matched_cameras = route_service.match_sites_to_route(cameras, geometry, radius_m=1500.0)
+    print(f"Matched {len(matched_flow)} sensors, {len(matched_cameras)} cameras")
 
     route_id = str(uuid.uuid4())[:8]
 
@@ -159,6 +178,7 @@ async def create_route(req: RouteRequest, x_api_key: str = Header(None)):
         "traffic_sites": matched_flow,
         "situations": situations,
         "road_condition": road_condition,
+        "cameras": matched_cameras,
         "alternatives": alt_routes,
     }
 
@@ -191,12 +211,23 @@ async def create_route_from_coords(req: CoordsRouteRequest, x_api_key: str = Hea
     geometry = primary["geometry"]
     bbox = route_service.get_route_bbox(geometry)
 
-    traffic_flow, situations, road_condition = await asyncio.gather(
+    # Get road info from route
+    road_refs = primary.get("road_refs", [])
+    road_names = primary.get("road_names", [])
+    print(f"Coords route uses: refs={road_refs}, {len(road_names)} named roads")
+
+    traffic_flow, situations, road_condition, cameras = await asyncio.gather(
         tv.fetch_traffic_flow(bbox),
         tv.fetch_situations(bbox),
         tv.fetch_road_condition(bbox),
+        tv.fetch_cameras(bbox),
     )
-    matched_flow = route_service.match_sites_to_route(traffic_flow, geometry)
+
+    # Smart matching based on route type
+    radius = 1000.0 if road_refs else 800.0
+    matched_flow = route_service.match_sites_to_route(traffic_flow, geometry, radius_m=radius)
+    matched_cameras = route_service.match_sites_to_route(cameras, geometry, radius_m=1500.0)
+    print(f"Matched {len(matched_flow)} sensors, {len(matched_cameras)} cameras")
 
     route_id = str(uuid.uuid4())[:8]
 
@@ -239,6 +270,7 @@ async def create_route_from_coords(req: CoordsRouteRequest, x_api_key: str = Hea
         "route_id": route_id, "destination": dest, "geometry": geometry,
         "distance_m": primary["distance_m"], "duration_s": primary["duration_s"],
         "traffic_sites": matched_flow, "situations": situations, "road_condition": road_condition,
+        "cameras": matched_cameras,
         "alternatives": alt_routes,
     }
 
@@ -384,10 +416,20 @@ async def voice_query(req: VoiceRequest, x_api_key: str = Header(None)):
 # ============= GEOCODE PROXY =============
 
 @app.get("/api/geocode")
-async def geocode_proxy(q: str = Query(...), x_api_key: str = Header(None)):
-    """Proxy Nominatim geocoding."""
+async def geocode_proxy(
+    q: str = Query(...),
+    lat: Optional[float] = Query(None),
+    lon: Optional[float] = Query(None),
+    x_api_key: str = Header(None),
+):
+    """Proxy Nominatim geocoding, biased toward user's location."""
     verify_api_key(x_api_key)
-    result = await route_service.geocode(q)
+    kwargs = {}
+    if lat is not None:
+        kwargs["bias_lat"] = lat
+    if lon is not None:
+        kwargs["bias_lon"] = lon
+    result = await route_service.geocode(q, **kwargs)
     if result is None:
         raise HTTPException(status_code=404, detail=f"Could not find '{q}'")
     return result

@@ -86,16 +86,24 @@ class UpcomingIntersectionsCard extends StatelessWidget {
                                 '${(route.distanceM / 1000).toStringAsFixed(1)} km • ${(route.durationS / 60).toStringAsFixed(0)} min',
                           ),
                           const SizedBox(height: 8),
-                          // Traffic summary
-                          if (sites.isNotEmpty) ...[
-                            _InfoTile(
-                              icon: Icons.speed_rounded,
-                              color: Colors.blue,
-                              title: '${sites.length} traffic sensors',
-                              subtitle: _speedSummary(sites),
-                            ),
-                            const SizedBox(height: 8),
-                          ],
+                          // Traffic summary - always show to debug
+                          _InfoTile(
+                            icon: Icons.speed_rounded,
+                            color: Colors.blue,
+                            title: '${sites.length} traffic sensors',
+                            subtitle: sites.isNotEmpty ? _speedSummary(sites) : 'No sensor data',
+                          ),
+                          const SizedBox(height: 8),
+                          // Cameras - always show to debug
+                          _InfoTile(
+                            icon: Icons.videocam_rounded,
+                            color: Colors.cyan,
+                            title: '${route.cameras.length} live cameras',
+                            subtitle: route.cameras.isNotEmpty
+                                ? route.cameras.take(2).map((c) => c.name).join(', ')
+                                : 'No cameras',
+                          ),
+                          const SizedBox(height: 8),
                           // Incidents
                           ...situations.take(2).map((sit) => Padding(
                                 padding: const EdgeInsets.only(bottom: 8),
@@ -110,7 +118,7 @@ class UpcomingIntersectionsCard extends StatelessWidget {
                                       : sit.severity,
                                 ),
                               )),
-                          if (situations.isEmpty && sites.isEmpty)
+                          if (situations.isEmpty && sites.isEmpty && route.cameras.isEmpty)
                             _InfoTile(
                               icon: Icons.check_circle_outline,
                               color: Colors.greenAccent,

@@ -208,6 +208,15 @@ async def fetch_road_condition(bbox: Dict[str, float]) -> List[Dict[str, Any]]:
         return []
 
 
+async def fetch_measurement_sites(_bbox: Dict[str, float]) -> Dict[str, Dict[str, Any]]:
+    """Fetch measurement site metadata - returns empty as Trafikverket
+    TrafficFlow doesn't expose road numbers in the public API."""
+    # Note: Trafikverket TrafficFlow identifies sites by SiteId but road info
+    # isn't available. Smart filtering uses road names from OSRM route instead.
+    _ = _bbox  # Unused, kept for API compatibility
+    return {}
+
+
 async def fetch_cameras(bbox: Dict[str, float]) -> List[Dict[str, Any]]:
     """Fetch traffic camera info within a bounding box."""
     box_val = _bbox_value(bbox)

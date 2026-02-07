@@ -32,29 +32,65 @@ def _clean_query(text: str) -> str:
 
 
 async def geocode(place_name: str, bias_lat: float = 57.7089, bias_lon: float = 11.9746) -> Optional[Dict[str, Any]]:
-    """Geocode a place name to lat/lon using Nominatim."""
+    """Geocode a place name to lat/lon using Nominatim.
+
+    Two-pass search strategy biased toward Göteborg centrum:
+    1. Bounded search (~30km radius) — returns results strictly within the area
+    2. If nothing found, unbounded search with soft bias (~50km viewbox)
+
+    From all candidates, picks the one closest to the bias point via haversine.
+    This ensures "nearest ICA" returns the ICA closest to centrum, not a random global hit.
+    """
     place_name = _clean_query(place_name)
     async with httpx.AsyncClient(verify=False, timeout=10) as client:
+        # Pass 1: bounded search within ~30km of Göteborg centrum
         resp = await client.get(
             f"{NOMINATIM_URL}/search",
             params={
                 "q": place_name,
                 "format": "jsonv2",
-                "limit": 1,
-                "viewbox": f"{bias_lon - 0.5},{bias_lat + 0.3},{bias_lon + 0.5},{bias_lat - 0.3}",
-                "bounded": 0,
+                "limit": 10,
+                "viewbox": f"{bias_lon - 0.3},{bias_lat + 0.2},{bias_lon + 0.3},{bias_lat - 0.2}",
+                "bounded": 1,
             },
             headers={"User-Agent": USER_AGENT},
         )
         resp.raise_for_status()
         results = resp.json()
+
+        # Pass 2: if bounded returned nothing, widen to ~50km with soft bias
+        if not results:
+            resp = await client.get(
+                f"{NOMINATIM_URL}/search",
+                params={
+                    "q": place_name,
+                    "format": "jsonv2",
+                    "limit": 10,
+                    "viewbox": f"{bias_lon - 0.5},{bias_lat + 0.3},{bias_lon + 0.5},{bias_lat - 0.3}",
+                    "bounded": 0,
+                },
+                headers={"User-Agent": USER_AGENT},
+            )
+            resp.raise_for_status()
+            results = resp.json()
+
         if not results:
             return None
-        r = results[0]
+
+        # Pick the result closest to the user's location
+        best = None
+        best_dist = float("inf")
+        for r in results:
+            rlat, rlon = float(r["lat"]), float(r["lon"])
+            d = _haversine(bias_lat, bias_lon, rlat, rlon)
+            if d < best_dist:
+                best_dist = d
+                best = r
+
         return {
-            "lat": float(r["lat"]),
-            "lon": float(r["lon"]),
-            "display_name": r.get("display_name", place_name),
+            "lat": float(best["lat"]),
+            "lon": float(best["lon"]),
+            "display_name": best.get("display_name", place_name),
         }
 
 
@@ -63,12 +99,12 @@ async def get_route(
     dest_lat: float, dest_lon: float,
     alternatives: int = 2,
 ) -> Optional[List[Dict[str, Any]]]:
-    """Get driving routes from OSRM. Returns a list of route alternatives."""
+    """Get driving routes from OSRM. Returns a list of route alternatives with road names."""
     async with httpx.AsyncClient(verify=False, timeout=10) as client:
         params = {
             "overview": "full",
             "geometries": "geojson",
-            "steps": "false",
+            "steps": "true",  # Enable steps to get road names
         }
         if alternatives > 0:
             params["alternatives"] = str(alternatives)
@@ -83,10 +119,27 @@ async def get_route(
         results = []
         for route in data["routes"]:
             coords = route["geometry"]["coordinates"]  # [[lon, lat], ...]
+
+            # Extract road names and refs from steps
+            road_names = set()
+            road_refs = set()  # Highway numbers like E6, E45, 40
+            for leg in route.get("legs", []):
+                for step in leg.get("steps", []):
+                    name = step.get("name", "").strip()
+                    ref = step.get("ref", "").strip()
+                    if name:
+                        road_names.add(name.lower())
+                    if ref:
+                        # Handle multiple refs like "E6;E45"
+                        for r in ref.split(";"):
+                            road_refs.add(r.strip().upper())
+
             results.append({
                 "geometry": coords,
                 "distance_m": route["distance"],
                 "duration_s": route["duration"],
+                "road_names": list(road_names),
+                "road_refs": list(road_refs),
             })
         return results
 
@@ -139,7 +192,7 @@ def _haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
 def match_sites_to_route(
     sites: List[Dict[str, Any]],
     geometry: List[List[float]],
-    radius_m: float = 200.0,
+    radius_m: float = 2500.0,
 ) -> List[Dict[str, Any]]:
     """Filter traffic flow sites to only those near the route."""
     matched = []
@@ -151,6 +204,86 @@ def match_sites_to_route(
             if _haversine(slat, slon, coord[1], coord[0]) <= radius_m:
                 matched.append(site)
                 break
+    return matched
+
+
+def match_sites_by_road(
+    sites: List[Dict[str, Any]],
+    site_metadata: Dict[str, Dict[str, Any]],
+    route_road_refs: List[str],
+    geometry: List[List[float]],
+    fallback_radius_m: float = 500.0,
+) -> List[Dict[str, Any]]:
+    """
+    Smart filter: only include sites on roads the user is traveling on.
+
+    Args:
+        sites: Traffic flow data with site_id
+        site_metadata: Mapping of site_id -> {road_number, name}
+        route_road_refs: List of road numbers from the route (e.g., ['E6', '40', 'E45'])
+        geometry: Route geometry for fallback distance matching
+        fallback_radius_m: If no road match, include if very close to route
+
+    Returns:
+        Filtered list of sites on matching roads
+    """
+    if not route_road_refs:
+        # No road refs from route, fall back to distance matching
+        print("match_sites_by_road: No road refs, using distance fallback")
+        return match_sites_to_route(sites, geometry, fallback_radius_m)
+
+    # Normalize route road refs for comparison
+    normalized_refs = set()
+    for ref in route_road_refs:
+        # Handle formats: "E6", "E 6", "Route 40", "40", "E6;E45"
+        ref_clean = ref.upper().replace(" ", "")
+        normalized_refs.add(ref_clean)
+        # Also add without prefix letters for numeric roads
+        import re as regex
+        num_match = regex.search(r'\d+', ref)
+        if num_match:
+            normalized_refs.add(num_match.group())
+
+    print(f"match_sites_by_road: Looking for roads: {normalized_refs}")
+
+    matched = []
+    matched_by_road = 0
+    matched_by_distance = 0
+
+    for site in sites:
+        site_id = site.get("site_id")
+        slat, slon = site.get("lat"), site.get("lon")
+
+        # Try road-based matching first
+        if site_id and str(site_id) in site_metadata:
+            meta = site_metadata[str(site_id)]
+            road_num = meta.get("road_number")
+            if road_num:
+                road_str = str(road_num).upper().replace(" ", "")
+                # Check if this road matches any route road
+                if road_str in normalized_refs:
+                    site["_matched_road"] = road_num
+                    matched.append(site)
+                    matched_by_road += 1
+                    continue
+                # Also check numeric part
+                num_match = regex.search(r'\d+', road_str)
+                if num_match and num_match.group() in normalized_refs:
+                    site["_matched_road"] = road_num
+                    matched.append(site)
+                    matched_by_road += 1
+                    continue
+
+        # Fallback: include if very close to the route (within tight radius)
+        if slat is not None and slon is not None:
+            for coord in geometry:
+                if _haversine(slat, slon, coord[1], coord[0]) <= fallback_radius_m:
+                    site["_matched_proximity"] = True
+                    matched.append(site)
+                    matched_by_distance += 1
+                    break
+
+    print(f"match_sites_by_road: Matched {matched_by_road} by road, {matched_by_distance} by proximity")
     return matched
 
 
